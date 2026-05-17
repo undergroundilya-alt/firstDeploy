@@ -1,0 +1,44 @@
+AdProof update: project DB sync + account-linked mock analytics
+
+What changed
+- Client account projects are now loaded from PostgreSQL when they are linked in avp_client_project_links.
+- The account page no longer depends only on local storage/saas-state.json to show projects.
+- The Analytics page can load a project from PostgreSQL by id before rendering.
+- seed:analytics now prefers a project linked to the current client account.
+- If the account exists but has no project, seed:analytics creates a mock project and links it to that account.
+- seed:analytics can clear old seeded data with SEED_CLEAR=true.
+- The analytics chart now has clearer labels for Today / Week / Month / All time.
+- Weekly/monthly views include a breakdown table showing visits, overlay events, and overlay percentage per day.
+- Today view includes an hourly breakdown.
+- The highest overlay-rate row is marked in the breakdown table.
+- Portal header width now matches the main 1180px content container instead of stretching items to the screen corners.
+- Portal nav font sizing is aligned closer to the marketing homepage header.
+
+How to seed analytics for the logged-in Google account
+1. Start the server and login once through Google so the account exists in Postgres.
+2. Stop the server with Ctrl+C.
+3. Run:
+   SEED_CLEAR=true SEED_DAYS=30 npm run seed:analytics
+4. Start again:
+   npm start
+5. Open the account page and click Analytics.
+
+Useful seed variants
+- Today only:
+  SEED_CLEAR=true SEED_DAYS=1 npm run seed:analytics
+
+- Last 7 days:
+  SEED_CLEAR=true SEED_DAYS=7 npm run seed:analytics
+
+- Last 30 days:
+  SEED_CLEAR=true SEED_DAYS=30 npm run seed:analytics
+
+- All-time style test:
+  SEED_CLEAR=true SEED_DAYS=90 npm run seed:analytics
+
+- Force a specific project:
+  SEED_CLEAR=true SEED_PROJECT_ID=prj_xxx SEED_DAYS=30 npm run seed:analytics
+
+Notes
+- The seed script uses SEED_EMAIL / SEED_ACCOUNT_EMAIL / SMTP_USER to find the account email. If none is set, it uses the latest account in avp_client_accounts.
+- Mock events are marked with details.seeded=true, so they can be deleted safely.

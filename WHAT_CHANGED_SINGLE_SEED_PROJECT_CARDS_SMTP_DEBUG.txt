@@ -1,0 +1,42 @@
+AdProof update: single analytics seed, project cards, DB project persistence, SMTP debug
+
+1) Analytics seed logic
+- npm run seed:analytics now creates one broad dataset by default (90 days).
+- You do NOT need to reseed for week/month/today.
+- The Analytics page filters the same DB data by selected period: Today / Week / Month / All time.
+- If no client account exists yet, seed creates a placeholder account using SEED_EMAIL, SMTP_USER, or MOCK_CONTACT_EMAIL, links the mock project to it, and Google login later reuses/updates that email account.
+
+Recommended local test:
+  npm install
+  npm run db:migrate
+  SEED_CLEAR=true SEED_DAYS=90 npm run seed:analytics
+  npm start
+
+Then open:
+  http://localhost:3443/account
+  Open the project card -> Analytics
+
+2) Project cards
+- The old Your projects table was removed.
+- Your projects now displays clean project cards with:
+  project name, domains, active/pilot badges, SDK snippet, Analytics button, and Overlay / Visits / Rate summary.
+
+3) Projects in DB
+- Project creation now waits for Postgres runtime readiness before persisting project config.
+- The server logs postgres_project_config_persisted when the project is saved to the remote DB.
+- Existing linked projects are restored from PostgreSQL for the logged-in client account.
+
+4) Reset password SMTP behavior
+- Reset password no longer silently says success when SMTP fails.
+- If SMTP is enabled but delivery fails, the reset page shows an SMTP error with the status.
+- Added debug endpoint:
+  http://localhost:3443/debug/email-outbox
+- Watch server logs for:
+  email_queued_for_smtp
+  email_smtp_sent
+  email_smtp_failed
+  password_reset_email_processed
+
+5) Security reminder
+- Secrets that were pasted in chat must be rotated after testing:
+  Gmail App Password, Google OAuth Secret, and Render DB password.

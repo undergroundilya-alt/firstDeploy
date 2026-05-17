@@ -1,0 +1,49 @@
+AdProof reset-password debug/fix update
+
+Changes:
+1. Added detailed reset-account lookup logs.
+   Look for this message in the terminal after submitting the reset form:
+   password_reset_account_lookup
+
+   It shows:
+   - requestedEmailMasked
+   - requestedEmailHash
+   - found: true/false
+   - source: json_auth_db / json_auth_db_miss / postgres / postgres_miss
+   - authDbFile
+   - authDbExists
+   - accountCount
+   - knownAccounts with masked emails and hashes
+
+2. Added detailed Google OAuth account logs.
+   Look for:
+   google_oauth_account_lookup
+   google_oauth_account_saved
+
+   These logs show whether Google OAuth found an existing account or created a new one,
+   and whether the account is visible immediately after saving.
+
+3. Added local debug endpoint:
+   http://localhost:3443/debug/auth-accounts
+
+   This endpoint is disabled in production and shows only masked emails and hashes.
+   It is useful to check whether Google login actually created the account in storage/auth-accounts.json.
+
+4. Improved email matching for local JSON auth storage.
+   The reset lookup now checks normalized email and common OAuth/email alias fields.
+
+5. Kept the clean success message:
+   A one-time reset link was sent.
+
+How to debug your current issue:
+1. Start server: npm start
+2. Login with Google.
+3. Check terminal for google_oauth_account_lookup and google_oauth_account_saved.
+4. Open http://localhost:3443/debug/auth-accounts
+5. Confirm that your Gmail account hash exists there.
+6. Submit reset password again.
+7. Check terminal for password_reset_account_lookup.
+
+If accountCount is 0 after Google login, Google OAuth is not writing to the local auth DB.
+If accountCount is >0 but requestedEmailHash does not match any knownAccounts.emailHash,
+you are entering a different email from the Google account that was saved.

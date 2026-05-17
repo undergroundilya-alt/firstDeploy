@@ -1,0 +1,40 @@
+AVP v2.0 cluster-ready beta
+
+What changed compared with v1.9:
+
+1. Real PostgreSQL adapter added
+- Lazy pg driver integration.
+- Migration runner.
+- Event writes to avp_events.
+- Project/company/secret bootstrap from JSON state.
+- Durable project config columns added in migration 002.
+
+2. Real Redis adapter added
+- Redis Streams event queue.
+- Shared visitor sessions.
+- Distributed rate limits.
+- Stream consumer group support for workers.
+
+3. Server can run in CLUSTER_MODE=true
+- Several API nodes can share visitor runtime sessions through Redis.
+- Several API nodes can push events into the same Redis stream.
+- Ingestion worker persists events into PostgreSQL.
+- /readyz and /metrics expose cluster flags.
+
+4. High-load defaults changed
+- Heartbeat default changed from 2 seconds to 20 seconds.
+- Scheduled rerender default changed from 30 seconds to 60 seconds.
+- Per-project shared limits can be enforced through Redis.
+
+5. Worker pipeline added
+- npm run worker:ingestion reads Redis Stream and writes PostgreSQL.
+- File backlog ingestion still works as fallback.
+- npm run worker:analytics aggregates PostgreSQL events into avp_daily_stats.
+
+6. Deployment added
+- Dockerfile.
+- deploy/docker-compose.production.yml with API, ingestion worker, analytics worker, PostgreSQL and Redis.
+- .env.production.example updated for cluster mode.
+
+7. Production boundary
+This is now a cluster-ready commercial beta foundation, not merely a single-node JSON beta. For real paid high-load clients, run it with PostgreSQL + Redis + workers + reverse proxy/CDN, not as the default single-node JSON mode.

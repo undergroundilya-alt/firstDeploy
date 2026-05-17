@@ -1,0 +1,16 @@
+UI + test site integration build
+
+Added:
+- public-site/ static marketing UI from ad_protect_site_responsive.zip
+- root public marketing routes: /, /product.html, /ai.html, /security.html, /pricing.html, /docs.html, /blog.html, /about.html, /support.html
+- /site/... namespace for the same static frontend
+- /platform route for the original backend landing page
+- /test-site launcher with practical SDK test cases
+- /test-site/article client-like article page using the real SaaS SDK
+- /test-site/backend-unlock local backend simulator for server-gate testing without exposing secret keys
+- docs/39_UI_BACKEND_MAPPING_AND_TEST_SITE.md mapping document
+
+Validated:
+- npm run check passed
+- server starts in HTTP development mode with USE_HTTPS=false
+- marketing UI, product page, test launcher and test article respond through the Node server

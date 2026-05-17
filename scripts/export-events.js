@@ -1,0 +1,11 @@
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const dir = path.resolve(root, process.env.EVENT_LOG_DIR || './data/events');
+const out = path.resolve(root, process.argv[2] || './data/events-export.ndjson');
+fs.mkdirSync(path.dirname(out), { recursive: true });
+const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /^events-\d{4}-\d{2}-\d{2}\.ndjson$/.test(f)).sort() : [];
+const ws = fs.createWriteStream(out);
+for (const f of files) ws.write(fs.readFileSync(path.join(dir, f)));
+ws.end(() => console.log(JSON.stringify({ ok: true, files: files.length, out }, null, 2)));

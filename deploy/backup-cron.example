@@ -1,0 +1,6 @@
+# Optional external backup sync example.
+# The app already creates local JSON backups in BACKUP_DIR.
+# Add your own off-server sync target before real production use.
+
+# m h dom mon dow command
+15 */6 * * * rsync -a --delete /opt/avp/backups/ backup-user@backup-host:/srv/backups/avp/

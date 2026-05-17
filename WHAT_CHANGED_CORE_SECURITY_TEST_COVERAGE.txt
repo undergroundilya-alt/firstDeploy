@@ -1,0 +1,21 @@
+Added stronger automated core-security coverage for the requested 16-step checklist.
+
+Updated:
+- tests/requested-protection-and-business.test.js
+- docs/43_CORE_SECURITY_TEST_PLAN.md
+
+New automated checks include:
+- SDK markers for MutationObserver, IntersectionObserver, getBoundingClientRect, display/visibility/opacity checks, scheduled rerender, visibilitychange and mobile adaptive behavior.
+- Full positive signed proof flow with generated P-256 key pair.
+- Server-side bait hit before accepting proof.
+- Lease active after valid proof.
+- Heartbeat OK keeps lease valid.
+- Replay of used proof is rejected.
+- Failed heartbeat/ad-zone mutation revokes access.
+- Lease denied after ad-zone mutation failure.
+- Wrong origin/domain rejected.
+- Analytics/state file contains proof OK, replay rejection and heartbeat/ad-zone failure under the correct project.
+- Checklist document asserts all 16 requested areas are documented.
+
+Limits kept honest:
+- Real uBlock, Charles MITM and real mobile content-blocker behavior remain manual/semi-automated scenarios.

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/png" href="/icon.png">
+  <title>AdProof — Ad visibility and protected access</title>
+  <meta name="description" content="A commercial beta website for ad visibility checks, protected content access, and project-level analytics.">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header topbar">
+  <div class="container nav-wrap">
+    <a class="logo" href="index.html" aria-label="AdProof home">
+      <img class="logo-icon" src="/icon.png" alt="" aria-hidden="true">
+      <span class="logo-text">AdProof</span>
+    </a>
+    <button class="menu-toggle" type="button" data-menu-toggle aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav" data-nav aria-label="Main navigation">
+      <a href="index.html" class="active">Home</a><a href="product.html" class="">Product</a><a href="ai.html" class="">AI</a><a href="security.html" class="">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="">Docs</a><a href="blog.html" class="">Blog</a><a href="/login" class="">Login</a>
+      <a class="nav-cta" href="/register">Get access</a>
+    </nav>
+  </div>
+</header>
+<main class="site-main">
+
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="reveal">
+        <div class="eyebrow"><span class="dot"></span> Visibility verification platform</div>
+        <h1>Ad visibility checks your team can <span>actually understand</span></h1>
+        <p class="lead">AdProof shows when an ad slot is not visible, why it happened, which pages are affected, and how that impacts access to protected content.</p>
+        
+      </div>
+      <div class="product-mockup reveal" aria-label="Platform visibility check preview">
+        <div class="mockup-toolbar"><span class="traffic"></span><span class="url">client-site.com/premium/article</span></div>
+        <div class="mockup-body">
+          <div class="recording-pane">
+            <div class="page-skeleton"><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="floating-note"><b>Project Manager</b> Why was premium access locked on this page?</div>
+            <div class="ad-slot-card"><strong>Ad slot hidden</strong><small>Reason: container height = 0px</small></div>
+          </div>
+          <div class="debug-pane">
+            <div class="ai-summary" style="margin-top:12px"><span>Visibility decision</span><p>AdProof detected that the ad container was rendered but became invisible before the verification check. The page was marked as affected and protected content remained locked.</p></div>
+            <div class="debug-list">
+              <div><b>1</b><span>project key</span><em class="ok">active</em></div>
+              <div><b>2</b><span>visitor session</span><em class="ok">created</em></div>
+              <div><b>3</b><span>ad container</span><em class="bad">0px</em></div>
+              <div><b>4</b><span>strict verification</span><em class="bad">failed</em></div>
+              <div><b>5</b><span>protected access</span><em class="warn">locked</em></div>
+            </div>
+            <div class="ai-summary"><span>Project insight</span><p>This issue is attached to the client project, domain, page URL, visitor session, and trigger reason, so the admin dashboard can show affected visitors, top pages, and visibility failures without manual debugging.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <div class="container grid cols-3 home-kpi-grid">
+      <div class="card kpi reveal"><div class="num" data-counter="1">0</div><div class="label">install snippet</div></div>
+      <div class="card kpi reveal"><div class="num" data-counter="5">0</div><div class="label">core SDK events</div></div>
+      <div class="card kpi reveal"><div class="num" data-counter="24" data-suffix="/7">0</div><div class="label">health monitoring</div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head reveal"><h2>Like bug reporting logic, but for ad visibility</h2><p>The customer and developer should not manually explain every visibility issue. AdProof captures the context, stores the reason, and shows the business impact.</p></div>
+      <div class="grid cols-3 home-feature-grid">
+        <div class="card feature reveal"><div class="icon">01</div><h3>Automatic context capture</h3><p class="muted">Browser, domain, page, session, ad container, trigger reason, and verification state.</p></div>
+        <div class="card feature reveal"><div class="icon">02</div><h3>Separated analytics</h3><p class="muted">Not only global SaaS stats, but client, project, domain, page, and reason-level visibility metrics.</p></div>
+        <div class="card feature reveal"><div class="icon">03</div><h3>Clean beta dashboard</h3><p class="muted">Visits, affected visitors, overlay rate, unlock rate, restored ad blocks, top pages, and integration health.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split align-center">
+      <div class="reveal">
+        <h2>Interactive workflow</h2>
+        <p class="muted">Switch the step and the technical card updates through JavaScript.</p>
+        <div class="step-tabs" data-tabs>
+          <button class="active" data-tab="detect">Detect</button>
+          <button data-tab="verify">Verify</button>
+          <button data-tab="explain">Explain</button>
+          <button data-tab="act">Act</button>
+        </div>
+      </div>
+      <div class="card strong reveal" data-tab-panel>
+        <span class="pill">Detect</span>
+        <h3>SDK detects that the ad container is hidden or failed to load</h3>
+        <p class="muted">Viewport, container size, page URL, session, visitor hash, and reason are captured.</p>
+        <pre><code>{ "eventType": "overlay", "reason": "ad_container_hidden" }</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container dark-band cta-band reveal">
+      <h2>Built for beta clients, ready for a SaaS roadmap</h2>
+      <p>Use it for media sites, niche publishers, and content products that need visibility insight without adding heavy integration work for every customer.</p>
+      <div class="actions"><a class="btn blue" href="product.html">Explore product</a><a class="btn ghost light" href="pricing.html">View pricing</a></div>
+    </div>
+  </section>
+
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-section"><h4>Product</h4><a href="product.html">Product</a><a href="ai.html">AI</a><a href="security.html">Security</a><a href="pricing.html">Pricing</a></div>
+      <div class="footer-section"><h4>Use cases</h4><a href="product.html">Publishers</a><a href="security.html">Premium content</a><a href="ai.html">Visibility insights</a><a href="/login">Client portal</a></div>
+      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Docs</a><a href="blog.html">Blog</a><a href="/login">Login</a><a href="#">System status</a></div>
+      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="support.html">Support</a><a href="/register">Get access</a><a href="privacy.html">Privacy</a></div>
+    <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 AdProof</span>
+      <span class="footer-terms"><a href="terms.html">Terms of Use</a><span class="legal-dot" aria-hidden="true">•</span><a href="privacy.html">Privacy Policy</a></span>
+    </div>
+  </div>
+</footer>
+<div class="toast" data-toast></div>
+<script src="app.js"></script>
+</body>
+</html>

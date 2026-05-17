@@ -1,0 +1,30 @@
+Added in this version:
+
+1. Product security coverage matrix
+   - docs/46_SECURITY_AND_ANALYTICS_COVERAGE_MATRIX.md
+   - covers domain guard, foreign script reuse, heartbeat, mutation observer, proof, lease, analytics, account, cancellation and load testing.
+
+2. Simple Enterprise percentage billing guide
+   - docs/47_ENTERPRISE_PERCENT_BILLING_SIMPLE.md
+   - formula for recovered revenue and percentage fee.
+
+3. JMeter/load testing runbook
+   - docs/48_JMETER_AND_LOAD_TESTING_RUNBOOK.md
+   - explains local vs real infrastructure tests.
+
+4. JMeter starter plan
+   - load-tests/jmeter/adproof-api-smoke.jmx
+   - light API smoke plan for health/readyz/test-site/SDK/session.
+
+5. Security coverage printer
+   - npm run security:checks
+
+6. New automated security test
+   - tests/security-scenarios-coverage.test.js
+   - npm run test:security
+   - now included in npm test.
+
+Verified:
+   - npm run check
+   - npm run test:security
+   - npm test

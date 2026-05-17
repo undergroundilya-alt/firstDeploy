@@ -1,0 +1,17 @@
+Final auth, footer, account modal and password reset polish
+
+Changes:
+- Registration lead text now uses 130% line-height.
+- Login page has Forgot password link.
+- Added /reset-password GET/POST flow with email validation and local outbox queue.
+- Account/admin shell header now uses AdProof logo instead of old text brand.
+- Header buttons in account shell now match the public navigation style more closely.
+- Client portal project creation is now opened from a Create Project + tile in a modal overlay with close button and smooth open/close behavior.
+- Removed the old empty-state card text: No projects yet / Create your first project below.
+- Footer width/alignment restored to align with the main CTA block.
+- Homepage mockup is fixed at 550px on desktop.
+- Global site background made warmer ivory without becoming yellow.
+- Kept current visual style otherwise.
+
+Verification:
+- npm test passed.

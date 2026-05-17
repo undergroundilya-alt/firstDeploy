@@ -1,0 +1,11 @@
+{
+  "learnMode": true,
+  "blockUnknown": false,
+  "strictAllowlist": false,
+  "requireSni": false,
+  "requireAlpnH2": true,
+  "minCipherSuites": 12,
+  "minExtensions": 7,
+  "allowJa3Md5": [],
+  "denyJa3Md5": []
+}

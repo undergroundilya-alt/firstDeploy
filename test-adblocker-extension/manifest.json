@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Local Test AdBlocker",
+  "version": "1.2.0",
+  "description": "Local simplified AdBlocker for testing ad DOM protection on https://localhost:3443/",
+  "permissions": ["storage", "activeTab"],
+  "action": {
+    "default_title": "Local Test AdBlocker",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://localhost:3443/*",
+        "https://127.0.0.1:3443/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://localhost:3443/*",
+    "https://127.0.0.1:3443/*"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "local-test-adblocker@example.local"
+    }
+  }
+}

@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['main', 'master', 'staging', 'develop']
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Node checks and non-UI tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_ENV: test
+      USE_HTTPS: 'false'
+      DOCS_PRIVATE: 'false'
+      ENABLE_POSTGRES_STORAGE: 'false'
+      ENABLE_REDIS_RUNTIME: 'false'
+      ENABLE_REDIS_EVENT_QUEUE: 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Scan for committed secrets
+        run: npm run secrets:scan
+      - name: Syntax and contract checks
+        run: npm run check
+      - name: Non-UI tests
+        run: npm test
+
+  playwright:
+    name: Playwright UI and responsive tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      USE_HTTPS: 'false'
+      DOCS_PRIVATE: 'false'
+      ENABLE_POSTGRES_STORAGE: 'false'
+      ENABLE_REDIS_RUNTIME: 'false'
+      ENABLE_REDIS_EVENT_QUEUE: 'false'
+      PLAYWRIGHT_PORT: 3457
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright tests
+        run: npm run test:ui
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore

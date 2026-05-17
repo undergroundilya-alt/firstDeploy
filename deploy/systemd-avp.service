@@ -1,0 +1,21 @@
+[Unit]
+Description=AVP Ad Visibility SaaS Beta
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/avp
+EnvironmentFile=/opt/avp/.env
+ExecStart=/usr/bin/node /opt/avp/server.js
+Restart=always
+RestartSec=5
+User=avp
+Group=avp
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/avp/data /opt/avp/backups /opt/avp/certs
+
+[Install]
+WantedBy=multi-user.target

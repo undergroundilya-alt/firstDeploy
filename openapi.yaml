@@ -1,0 +1,148 @@
+openapi: 3.0.3
+info:
+  title: Ad Visibility Verification SaaS Beta API
+  version: 1.6.0-beta-hardened
+  description: Beta API for visitor sessions, challenges, proof verification, event ingestion, ad fragments, server-side content verification and health monitoring.
+servers:
+  - url: https://localhost:3443
+paths:
+  /healthz:
+    get:
+      summary: Liveness check
+      responses:
+        '200': { description: Service is running }
+  /readyz:
+    get:
+      summary: Readiness check
+      responses:
+        '200': { description: Data file and runtime are ready }
+  /metrics:
+    get:
+      summary: Prometheus-style metrics
+      responses:
+        '200': { description: Plain text metrics }
+  /api/v1/ping:
+    get:
+      summary: Neutral connectivity ping
+      parameters:
+        - in: query
+          name: projectKey
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/v1/session:
+    post:
+      summary: Create visitor session and register client WebCrypto public key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectKey]
+              properties:
+                projectKey: { type: string }
+                pageUrl: { type: string }
+                mode: { type: string }
+                clientPublicKey: { type: object }
+      responses:
+        '200': { description: Visitor session created }
+  /api/v1/challenge:
+    post:
+      summary: Issue one-time proof challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectKey, visitorToken]
+              properties:
+                projectKey: { type: string }
+                visitorToken: { type: string }
+                kind: { type: string, example: content }
+      responses:
+        '200': { description: Challenge issued }
+  /api/v1/proof:
+    post:
+      summary: Verify signed WebCrypto/canvas/ad visibility proof
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectKey, visitorToken, payload, signature]
+              properties:
+                projectKey: { type: string }
+                visitorToken: { type: string }
+                payload: { type: object }
+                signature: { type: string }
+      responses:
+        '200': { description: Proof accepted }
+        '403': { description: Proof rejected }
+  /api/v1/ad-fragment:
+    get:
+      summary: Get server-rendered advertising fragment
+      parameters:
+        - in: query
+          name: projectKey
+          required: true
+          schema: { type: string }
+        - in: query
+          name: visitorToken
+          required: true
+          schema: { type: string }
+        - in: query
+          name: reason
+          schema: { type: string }
+        - in: query
+          name: nonce
+          schema: { type: string }
+        - in: query
+          name: slotId
+          schema: { type: string }
+        - in: query
+          name: baitToken
+          schema: { type: string }
+      responses:
+        '200': { description: Ad fragment HTML }
+  /api/v1/bait-hit:
+    get:
+      summary: Bait pixel/script observation endpoint
+      responses:
+        '200': { description: 1x1 gif or JS bait response }
+  /api/v1/events:
+    post:
+      summary: Record SDK event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectKey, type]
+              properties:
+                projectKey: { type: string }
+                visitorToken: { type: string }
+                type: { type: string }
+                reason: { type: string }
+                details: { type: object }
+      responses:
+        '200': { description: Event recorded }
+  /api/v1/server/verify:
+    post:
+      summary: Server-side protected content verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectKey, secretKey, visitorToken]
+              properties:
+                projectKey: { type: string }
+                secretKey: { type: string }
+                visitorToken: { type: string }
+      responses:
+        '200': { description: Verification result }

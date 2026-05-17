@@ -1,0 +1,48 @@
+AdProof update: Trial signup, marketing consent, access flow and analytics polish
+
+1) Signup and trial
+- Registration title is now: "Create your account".
+- New accounts start on Beta Trial by default.
+- Beta Trial copy is visible after signup: 30 days, 1 project, up to 100k visits/day.
+- Signup includes a marketing consent checkbox.
+- Marketing consent is stored on the client account and mirrored into avp_marketing_consents when Postgres is enabled.
+
+2) Plans
+- Beta: free 1 month, 1 project, up to 100k visits/day.
+- Classic: monthly plan, up to 3 projects, up to 1M visits/day.
+- Enterprise: custom plan, purple pricing card.
+- No annual-lock messaging is used.
+
+3) Get access flow
+- Public "Get access" buttons now lead directly to /register.
+- The old request-beta-access form was removed from support.html.
+- support.html now explains that access starts by creating a real account.
+
+4) Profile navigation
+- Public header checks /api/client/session.
+- Guests see Login.
+- Logged-in users see Profile dropdown.
+- Profile dropdown uses the current account name/email dynamically, not a hardcoded name.
+- Portal/admin header also uses Profile dropdown with Logout.
+
+5) Project dashboard
+- Your projects is rendered as project cards rather than a plain table.
+- Cards show project name, domains, active status, plan, SDK snippet, Analytics button, and Overlay / Visits / Rate.
+- Projects are persisted and loaded from Postgres when DATABASE_URL is configured.
+
+6) Analytics seed and filters
+- seed:analytics creates one dataset across a wider date range.
+- Today / Week / Month / All time are UI/backend filters over existing data.
+- You do not need to reseed separately for week/month/all-time testing.
+
+7) Toasts and messages
+- Success notices are smaller and fade out smoothly.
+- Password updated message is shorter: "Password updated · You are logged in."
+
+8) SMTP/debug
+- /debug/email-outbox is available for local delivery troubleshooting.
+- Reset password surfaces SMTP failures instead of silently claiming success when delivery fails.
+
+9) Safety/security test surface
+- Existing test site and SDK flows remain available for safe diagnostics: signed proof, heartbeat, MutationObserver/tamper events, overlay events, and analytics ingestion.
+- Browser-side blocker bypass is not faked as a security guarantee; server-side signed proof and lease validation remain the source of truth.

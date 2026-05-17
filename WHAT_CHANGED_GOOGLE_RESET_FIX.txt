@@ -1,0 +1,18 @@
+AdProof — Google OAuth + reset password fix
+
+What changed:
+- Password reset now recognizes accounts created through Google OAuth by the same email address.
+- Email matching is normalized everywhere: trimmed and lowercased.
+- JSON fallback lookup now compares normalized stored email values, so older records with uppercase/trailing spaces are still found.
+- PostgreSQL lookup now uses lower(trim(email)) for safer matching.
+- Google OAuth account creation is idempotent: if the email already exists, it reuses/updates the existing account instead of creating a duplicate.
+- Reset success page is simplified to only show: "A one-time reset link was sent."
+
+Why this matters:
+- A client who first signs in with Google can still request a password reset / local password creation for the same email.
+- Unknown emails are still rejected with a friendly "check the address or create an account" message.
+
+Local checks performed:
+- npm run check
+- npm test
+- Manual reset check with a JSON-stored Google OAuth account using mixed-case/trailing-space email.

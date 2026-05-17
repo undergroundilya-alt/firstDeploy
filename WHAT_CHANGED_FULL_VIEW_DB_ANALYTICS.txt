@@ -1,0 +1,9 @@
+AdProof full view / DB analytics changes
+
+- Removed client portal "Open demo" wording and replaced project action with "Open full view".
+- Moved Overlay analytics from /account into /account/projects/:id/full.
+- Full view supports Count / Percent and Today / Week / Month / All time.
+- Full view reads analytics from PostgreSQL avp_events when DATABASE_URL or POSTGRES_URL is configured.
+- Postgres storage is now enabled automatically when a DB URL exists, and direct event writes are enabled by default when Redis queue is not used.
+- Project creation now deduplicates allowed domains and does not add localhost/127.0.0.1 duplicates.
+- Added scripts/seed-postgres-analytics.js and npm script seed:analytics for optional test data insertion into the configured DB.

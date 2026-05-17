@@ -1,0 +1,26 @@
+AdProof update — email/reset flow, demo page and client portal polish
+
+Changed:
+1. Reset password route now works at /reset-password.
+2. POST /reset-password creates a one-time reset token if the account exists.
+3. Reset links expire in 1 hour and are marked as used after successful password update.
+4. After sending a reset request, the user is redirected to /reset-password?sent=1.
+5. The confirmation page no longer shows the previously typed email value.
+6. Registration and reset emails now go through SMTP when configured; storage/email-outbox.json remains as delivery/debug log.
+7. Added structured logs:
+   - email_queued_local_outbox
+   - registration_email_processed
+   - password_reset_email_processed
+   - password_reset_requested_for_unknown_email
+8. Login success popover is smaller, cleaner, and fades out after 3 seconds.
+9. Client account identity line is now displayed as clean chips instead of gray text in one line.
+10. Customer demo page was redesigned and no longer says “Demo publisher page”.
+11. In development mode the demo route automatically allows localhost/127.0.0.1 for demo testing.
+12. SDK hard lock now uses fixed full-screen positioning and centers the lock card.
+
+How to check local outbox:
+- storage/email-outbox.json
+
+Important:
+- SMTP is supported through nodemailer when SMTP variables are configured.
+- The JSON outbox remains as a local delivery/debug log and fallback.

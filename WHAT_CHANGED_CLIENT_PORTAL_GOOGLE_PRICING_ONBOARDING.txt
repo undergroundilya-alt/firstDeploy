@@ -1,0 +1,1 @@
+Added Google OAuth skeleton, login/register popups, registration email outbox, first-login onboarding, client overlay analytics controls, gradient project cards, improved project creation form, and updated pricing copy. Billing remains deferred by design.

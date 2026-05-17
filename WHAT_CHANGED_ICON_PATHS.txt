@@ -1,0 +1,15 @@
+AdProof icon path fix
+
+Changed all marketing/public-site HTML logo image references from relative icon.png to absolute /icon.png.
+This prevents the browser from trying to resolve the image incorrectly from a nested page/path.
+
+Also added favicon link to the public-site HTML pages:
+<link rel="icon" type="image/png" href="/icon.png">
+
+The actual file remains here:
+public-site/icon.png
+
+Quick local check after npm start:
+http://localhost:3443/icon.png
+http://localhost:3443/
+http://localhost:3443/product.html

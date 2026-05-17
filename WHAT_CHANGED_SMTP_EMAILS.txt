@@ -1,0 +1,30 @@
+AdProof update — real SMTP email delivery
+
+Changed:
+1. Added nodemailer dependency to package.json and package-lock.json.
+2. Added real SMTP delivery for registration and password-reset emails.
+3. Added SMTP environment variables: SMTP_ENABLED, SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_REPLY_TO, SMTP_REQUIRE_TLS, SMTP_TIMEOUT_MS, SMTP_FAIL_BLOCKS_AUTH.
+4. Replaced local-only queueEmail() with async sendAppEmail().
+5. storage/email-outbox.json is kept as a delivery/debug log for every email attempt.
+6. Outbox entries now include status, provider, SMTP public status, messageId/response on success, and error text on failure.
+7. /health and /readyz expose safe SMTP configuration status without secrets.
+8. Reset-password confirmation page no longer talks about a local-only queue; it says the reset link was sent and does not preserve the entered email value.
+9. Registration and reset flow keep working even if SMTP fails, unless SMTP_FAIL_BLOCKS_AUTH=true is set.
+
+How to enable SMTP locally:
+1. Run npm install after unpacking the archive.
+2. Add SMTP variables to .env. Example for Gmail:
+
+SMTP_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM="AdProof <your-email@gmail.com>"
+SMTP_REPLY_TO=your-email@gmail.com
+
+Notes:
+- For Gmail use an App Password, not the regular Google password.
+- For SendGrid/Mailgun/Resend use their SMTP host, port, username and SMTP/API password according to provider settings.
+- If SMTP is not configured, emails remain local_outbox_only in storage/email-outbox.json.

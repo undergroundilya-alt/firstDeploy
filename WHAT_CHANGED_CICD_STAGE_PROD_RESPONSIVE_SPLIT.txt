@@ -1,0 +1,12 @@
+Added CI/CD and staged deployment guardrails:
+- GitHub Actions CI for syntax, secret scan, non-UI tests and Playwright UI tests
+- staging deployment workflow with deploy hook after tests
+- production deployment workflow with deploy hook after tests
+- local pre-push hook support via npm run setup:hooks
+- npm run ci:local and npm run ci:full
+- secret scanner for obvious leaked OAuth/SMTP/Postgres secrets
+- responsive Playwright smoke tests for desktop, tablets and phones
+- portal responsive CSS block injected into appShell
+- split email logic into src/blocks/email-service.js
+- added client portal and site block modules for continued server.js decomposition
+- docs for CI/CD, branch protection, responsive QA and server block split

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AdProof Static Ad Element Test</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="index.html"><span class="brand-mark">AP</span><span>AdProof Test</span></a>
+      <nav>
+        <a href="#middle-ad">Left ad</a>
+        <a href="#left-ad">Right ad</a>
+        <a href="#protected">Protected content</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <p class="eyebrow">Static ad element simulation</p>
+          <h1>Test protection with a simple real-world ad container</h1>
+          <p class="lead">This page uses a static ad-like DOM structure similar to the example you provided. There is no Google iframe, no external request and no local ad server. The visual ad is loaded from <code>C:/static_banner.jpg</code>, so this sandbox uses your local static banner image.</p>
+          <div class="actions">
+            <a class="btn" href="#protected">Start testing</a>
+            <button class="btn ghost" data-action="restore">Restore test page</button>
+          </div>
+        </div>
+        <aside class="status-card">
+          <span class="status-dot"></span>
+          <h2>Selectors for AdProof</h2>
+          <p>Use these selectors in the project settings.</p>
+          <pre>[data-adproof-slot="left-sidebar"]
+[data-adproof-slot="middle-sidebar"]
+[data-adproof-content="protected"]</pre>
+          <p class="small-note">Place your static banner image at <code>C:/static_banner.jpg</code>.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="protected">
+      <div class="container layout three-column-layout">
+        <aside class="ad-column ad-column-left" id="middle-ad">
+          <p class="ad-note">Left side ad slot · static image</p>
+
+          <div class="col d-none d-sm-none hidden-xs-sm-md-lg visable-xl middle-static-slot" data-adproof-slot="middle-sidebar" data-adproof-role="ad-zone" data-slot-min-width="160" data-slot-min-height="600">
+            <div class="ads-box ad-block-300X600 ad-block-left-300X600">
+              <!-- Static imitation of TempMail_S2S_Sidebar_ROS_Pos1 -->
+              <div id="bsa-zone_1594133221208-0_123456-middle" data-google-query-id="static-test-middle">
+                <div id="google_ads_iframe_static_middle_container__" style="border: 0pt; margin: auto; text-align: center;">
+                  <img class="static-ad-image" src="file:///C:/static_banner.jpg" width="160" height="600" alt="Advertisement" aria-label="Advertisement" data-load-complete="true" data-google-container-id="5">
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <article class="content-card" data-adproof-content="protected">
+          <p class="section-label">Protected content area</p>
+          <h2>Premium article sandbox</h2>
+          <p>This block represents content that should be available only while the ad zones, SDK, heartbeat and server-side lease are valid.</p>
+          <p>The static ad blocks on both sides are intentionally simple: nested wrappers, ad-like classes, stable tracking selectors and a static image inside.</p>
+          <p>This page is prepared as a clean visual sandbox for connecting AdProof SDK and checking real frontend/backend behavior without manual demo buttons.</p>
+
+          <div class="test-panel diagnostic-panel">
+            <h3>AdProof diagnostic area</h3>
+            <p class="diagnostic-copy">Connect the real SDK here and use browser DevTools, uBlock, or your backend tests to trigger actual validation scenarios.</p>
+            <pre id="debugBox">Ready. Static ad element simulation is active. Image source: C:/static_banner.jpg</pre>
+          </div>
+        </article>
+
+        <aside class="ad-column ad-column-right" id="left-ad">
+          <p class="ad-note">Right side ad slot · static image</p>
+
+          <div class="col d-none d-sm-none hidden-xs-sm-md-lg visable-xl" data-adproof-slot="left-sidebar" data-adproof-role="ad-zone" data-slot-min-width="160" data-slot-min-height="600">
+            <div class="ads-box ad-block-300X600 ad-block-left-300X600">
+              <!-- Static imitation of TempMail_S2S_Sidebar_ROS_Pos1 -->
+              <div id="bsa-zone_1594133221208-0_123456-left" data-google-query-id="static-test-left">
+                <div id="google_ads_iframe_static_left_container__" style="border: 0pt; margin: auto; text-align: center;">
+                  <img class="static-ad-image" src="file:///C:/static_banner.jpg" width="160" height="600" alt="Advertisement" aria-label="Advertisement" data-load-complete="true" data-google-container-id="4">
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div><strong>AdProof Static Test</strong><span>Simple ad container sandbox for SDK and backend validation</span></div>
+      <div><a href="#protected">Back to test controls</a></div>
+    </div>
+  </footer>
+
+  <!-- Replace avp_pub_REPLACE_ME with a real project public key when connecting to your backend. -->
+  <!-- <script src="/sdk/v1/avp_pub_REPLACE_ME.js" async></script> -->
+  <script src="app.js"></script>
+</body>
+</html>

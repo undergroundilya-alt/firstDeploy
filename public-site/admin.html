@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/png" href="/icon.png">
+  <title>AdProof — Client Portal Preview</title>
+  <meta name="description" content="Client portal preview for AdProof project analytics, customer setup, security, and account workflows.">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header topbar">
+  <div class="container nav-wrap">
+    <a class="logo" href="index.html" aria-label="AdProof home">
+      <img class="logo-icon" src="/icon.png" alt="" aria-hidden="true">
+      <span class="logo-text">AdProof</span>
+    </a>
+    <button class="menu-toggle" type="button" data-menu-toggle aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav" data-nav aria-label="Main navigation">
+      <a href="index.html" class="">Home</a><a href="product.html" class="">Product</a><a href="ai.html" class="">AI</a><a href="security.html" class="">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="">Docs</a><a href="blog.html" class="">Blog</a><a href="/login" class="active">Login</a>
+      <a class="nav-cta" href="/register">Get access</a>
+    </nav>
+  </div>
+</header>
+<main class="site-main">
+  <section class="page-hero">
+    <div class="container split align-center">
+      <div class="reveal">
+        <div class="eyebrow"><span class="dot"></span> Client portal preview</div>
+        <h1>Client projects and visibility analytics in one place</h1>
+        <p class="lead">A clean client portal for beta operations: projects, allowed domains, SDK snippets, visibility events, protected access signals, and account status.</p>
+        <div class="actions"><a class="btn blue" href="#admin-preview">View dashboard</a><a class="btn ghost" href="docs.html">Read setup docs</a></div>
+      </div>
+      <div class="card dashboard-card reveal">
+        <div class="dash-head"><strong>Client portal snapshot</strong><span class="pill good">Demo data</span></div>
+        <div class="grid cols-3 mini-kpis">
+          <div><strong>42.8k</strong><span>visits</span></div>
+          <div><strong>9.6%</strong><span>affected</span></div>
+          <div><strong>94%</strong><span>unlock rate</span></div>
+        </div>
+        <canvas class="mini-chart" width="520" height="210" data-values="28,35,31,44,52,49,64,58,72,69,84,92"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight" id="admin-preview">
+    <div class="container">
+      <div class="admin-shell reveal" data-admin-tabs>
+        <div class="admin-tabs" role="tablist" aria-label="Client portal preview sections">
+          <button class="active" type="button" data-admin-tab="login">Login</button>
+          <button type="button" data-admin-tab="dashboard">Dashboard</button>
+          <button type="button" data-admin-tab="project">New project</button>
+          <button type="button" data-admin-tab="security">Security</button>
+        </div>
+
+        <div class="admin-panel active" data-admin-panel="login">
+          <div class="split">
+            <section class="card strong">
+              <h2>Client login</h2>
+              <p class="muted">The production version uses a protected session, CSRF tokens, password rules, and optional MFA for client accounts.</p>
+              <form class="lead-form">
+                <label>Email<input value="owner@example.com" aria-label="Email"></label>
+                <label>Password<input type="password" value="admin123" aria-label="Password"></label>
+                <label>MFA code<input placeholder="123456" aria-label="MFA code"></label>
+                <button class="btn blue" type="button">Sign in</button>
+              </form>
+            </section>
+            <aside class="card">
+              <h3>Beta access</h3>
+              <p class="muted">After login, the client can create projects, copy public SDK keys, manage allowed domains, and review event-level analytics.</p>
+              <pre><code>CLIENT_LOGIN=/login
+CLIENT_REGISTER=/register</code></pre>
+            </aside>
+          </div>
+        </div>
+
+        <div class="admin-panel" data-admin-panel="dashboard">
+          <div class="grid cols-4 admin-kpis">
+            <div class="card kpi"><div class="label">Total visits</div><div class="num">42.8k</div><div class="label">across all projects</div></div>
+            <div class="card kpi"><div class="label">Affected visitors</div><div class="num">9.6%</div><div class="label">visibility issues</div></div>
+            <div class="card kpi"><div class="label">Unlock rate</div><div class="num">94%</div><div class="label">protected content</div></div>
+            <div class="card kpi"><div class="label">Health</div><div class="num">98%</div><div class="label">valid signals</div></div>
+          </div>
+          <section class="card section-card">
+            <div class="section-head compact"><h2>Customer projects</h2><p>Separate project analytics keep each customer, domain, page, and reason easy to review.</p></div>
+            <div class="table-wrap"><table class="table">
+              <thead><tr><th>Project</th><th>Domains</th><th>Status</th><th>Visits</th><th>Affected</th><th>Top reason</th><th>Public key</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Protected Content Demo</strong><br><span class="muted">Demo Publisher</span></td><td>localhost<br>127.0.0.1</td><td><span class="pill good">healthy</span></td><td>18.4k</td><td>7.8%</td><td>ad container hidden</td><td><code>avp_pub_demo...</code></td></tr>
+                <tr><td><strong>News Portal</strong><br><span class="muted">Beta client</span></td><td>news.example.com</td><td><span class="pill warn">review</span></td><td>24.4k</td><td>11.2%</td><td>domain mismatch</td><td><code>avp_pub_news...</code></td></tr>
+              </tbody>
+            </table></div>
+          </section>
+          <section class="card section-card">
+            <div class="section-head compact"><h2>Recent events</h2><p>Event logs show page URL, event type, reason, and project context.</p></div>
+            <div class="table-wrap"><table class="table">
+              <thead><tr><th>Time</th><th>Project</th><th>Type</th><th>Reason</th><th>Page</th></tr></thead>
+              <tbody>
+                <tr><td>11:28</td><td>Protected Content Demo</td><td>overlay</td><td>ad_container_hidden</td><td>/article</td></tr>
+                <tr><td>11:26</td><td>News Portal</td><td>verification</td><td>domain_not_allowed</td><td>/premium</td></tr>
+                <tr><td>11:24</td><td>Protected Content Demo</td><td>unlock</td><td>verified</td><td>/article</td></tr>
+              </tbody>
+            </table></div>
+          </section>
+        </div>
+
+        <div class="admin-panel" data-admin-panel="project">
+          <section class="card strong">
+            <h2>Create website project</h2>
+            <p class="muted">Each project receives a public key for the browser script. Server-side private verification stays outside the public website code.</p>
+            <form class="lead-form admin-form-grid">
+              <label>Company name<input placeholder="Media Publisher LLC"></label>
+              <label>Contact email<input placeholder="client@example.com"></label>
+              <label>Project name<input placeholder="News Portal"></label>
+              <label>Allowed domains<textarea rows="3" placeholder="example.com
+www.example.com"></textarea></label>
+              <label>Protected content selector<input value="#protected-content"></label>
+              <label>Ad container selector<input value="#ad-slot"></label>
+            </form>
+            <div class="notice-card">
+              <span class="pill good">Strict protection</span>
+              <p>The product uses one default protection path: browser visibility signals plus backend verification for protected access.</p>
+            </div>
+            <button class="btn blue" type="button">Create project</button>
+          </section>
+        </div>
+
+        <div class="admin-panel" data-admin-panel="security">
+          <div class="grid cols-2">
+            <section class="card strong">
+              <h2>Security center</h2>
+              <p class="muted">Operational controls for MFA, audit log, alerts, global rollback, production checks, and project health.</p>
+              <div class="stack"><span class="pill warn">MFA disabled</span><span class="pill good">Kill switch off</span><span class="pill good">Audit active</span></div>
+              <button class="btn ghost" type="button">Generate TOTP secret</button>
+            </section>
+            <section class="card">
+              <h2>Recent alerts</h2>
+              <div class="table-wrap"><table class="table"><thead><tr><th>Severity</th><th>Type</th><th>Details</th></tr></thead><tbody><tr><td><span class="pill warn">medium</span></td><td>domain</td><td>New domain mismatch detected</td></tr><tr><td><span class="pill good">low</span></td><td>quota</td><td>Project is within beta limits</td></tr></tbody></table></div>
+            </section>
+          </div>
+          <section class="card section-card">
+            <h2>Account audit log</h2>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody><tr><td>11:22</td><td>owner@example.com</td><td>login_success</td><td>Client session created</td></tr><tr><td>11:18</td><td>owner@example.com</td><td>project_created</td><td>News Portal</td></tr><tr><td>11:12</td><td>owner@example.com</td><td>settings_updated</td><td>Allowed domains changed</td></tr></tbody></table></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-section"><h4>Product</h4><a href="product.html">Product</a><a href="ai.html">AI</a><a href="security.html">Security</a><a href="pricing.html">Pricing</a></div>
+      <div class="footer-section"><h4>Use cases</h4><a href="product.html">Publishers</a><a href="security.html">Premium content</a><a href="ai.html">Visibility insights</a><a href="/login">Client portal</a></div>
+      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Docs</a><a href="blog.html">Blog</a><a href="/login">Login</a><a href="#">System status</a></div>
+      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="support.html">Support</a><a href="/register">Get access</a><a href="privacy.html">Privacy</a></div>
+    <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 AdProof</span>
+      <span class="footer-terms"><a href="terms.html">Terms of Use</a><span class="legal-dot" aria-hidden="true">•</span><a href="privacy.html">Privacy Policy</a></span>
+    </div>
+  </div>
+</footer>
+<div class="toast" data-toast></div>
+<script src="app.js"></script>
+</body>
+</html>

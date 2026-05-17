@@ -1,0 +1,19 @@
+WHAT CHANGED — RESET PASSWORD EMAIL CHECK
+
+1. Reset password now checks whether the submitted email exists before creating a token or sending an email.
+
+2. If the email is not found, the page shows a clear error:
+   We could not find an account with this email. Please check the address or create an account.
+
+3. Unknown-email reset requests are logged as:
+   password_reset_rejected_unknown_email
+
+4. The success screen was simplified. It now shows only:
+   A one-time reset link was sent.
+
+5. The old privacy-style text was removed:
+   If this email exists...
+   The local outbox still stores...
+
+Important security note:
+This behavior is more convenient for a beta/client portal, but it allows checking whether an email is registered. For a public production auth system, the safer pattern is usually to show the same generic success message for all emails.

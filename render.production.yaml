@@ -1,0 +1,57 @@
+services:
+  - type: web
+    name: adproof-production
+    env: node
+    plan: starter
+    buildCommand: npm ci && npm test
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: NODE_ENV
+        value: production
+      - key: USE_HTTPS
+        value: false
+      - key: ENABLE_APP_DB
+        value: true
+      - key: ENABLE_POSTGRES_STORAGE
+        value: true
+      - key: POSTGRES_DIRECT_EVENT_WRITE
+        value: true
+      - key: POSTGRES_AUTO_MIGRATE
+        value: false
+      - key: POSTGRES_SSL
+        value: true
+      - key: AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH
+        value: true
+      - key: DOCS_PRIVATE
+        value: true
+      - key: STRICT_PRODUCTION_GUARD
+        value: true
+      - key: REQUIRE_MFA_IN_PRODUCTION
+        value: true
+      - key: ALLOW_MOCK_DATA
+        value: false
+      - key: ALLOW_PRODUCTION_MOCK_SEED
+        value: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: METRICS_TOKEN
+        generateValue: true

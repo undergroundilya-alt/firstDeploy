@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/png" href="/icon.png">
+  <title>AdProof — Docs</title>
+  <meta name="description" content="Static documentation page with install snippet, event examples, and server verification notes.">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header topbar">
+  <div class="container nav-wrap">
+    <a class="logo" href="index.html" aria-label="AdProof home">
+      <img class="logo-icon" src="/icon.png" alt="" aria-hidden="true">
+      <span class="logo-text">AdProof</span>
+    </a>
+    <button class="menu-toggle" type="button" data-menu-toggle aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav" data-nav aria-label="Main navigation">
+      <a href="index.html" class="">Home</a><a href="product.html" class="">Product</a><a href="ai.html" class="">AI</a><a href="security.html" class="">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="active">Docs</a><a href="blog.html" class="">Blog</a><a href="/login" class="">Login</a>
+      <a class="nav-cta" href="/register">Get access</a>
+    </nav>
+  </div>
+</header>
+<main class="site-main">
+
+  <section class="page-hero">
+    <div class="container"><div class="eyebrow reveal"><span class="dot"></span> Developer docs</div><h1 class="reveal">Install in minutes, expand when ready</h1><p class="lead reveal">Start with one script tag, then connect project settings, event batching, and backend verification for protected access.</p></div>
+  </section>
+
+  <section class="section tight">
+    <div class="container docs-layout">
+      <aside class="docs-sidebar reveal"><a href="#snippet">Install snippet</a><a href="#events">Events</a><a href="#server">Server verify</a><a href="#checks">Checklist</a></aside>
+      <div class="docs-content">
+        <section class="card reveal" id="snippet"><div class="code-head"><h2>Install snippet</h2><button class="btn ghost small-btn" type="button" data-copy="#install-code">Copy</button></div><pre id="install-code"><code>&lt;script
+  async
+  src="https://cdn.adproof.example/gate.js"
+  data-project-key="adp_pub_demo123"&gt;
+&lt;/script&gt;</code></pre></section>
+        <section class="card reveal" id="events"><h2>Event payload</h2><p class="muted">Every event should carry enough context to build project-level analytics.</p><pre><code>{
+  "eventType": "overlay",
+  "projectId": "prj_123",
+  "publicKey": "adp_pub_demo123",
+  "domain": "client.com",
+  "path": "/premium/article",
+  "pageUrl": "https://client.com/premium/article",
+  "sessionId": "sess_456",
+  "visitorId": "anon_789",
+  "reason": "ad_container_hidden"
+}</code></pre></section>
+        <section class="card reveal" id="server"><h2>Server verify</h2><p class="muted">Use this only from the customer backend. Never expose the secret key in browser code.</p><pre><code>POST https://api.adproof.example/v1/verify
+Authorization: Bearer adp_sk_live_xxx</code></pre></section>
+        <section class="card reveal" id="checks"><h2>Launch checklist</h2><ol class="steps"><li>Create customer and project.</li><li>Add allowed domains.</li><li>Configure the strict protected-access flow.</li><li>Install the snippet on a test page.</li><li>Check events, overlay rate, and integration health.</li><li>Enable alerts before production rollout.</li></ol></section>
+      </div>
+    </div>
+  </section>
+
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-section"><h4>Product</h4><a href="product.html">Product</a><a href="ai.html">AI</a><a href="security.html">Security</a><a href="pricing.html">Pricing</a></div>
+      <div class="footer-section"><h4>Use cases</h4><a href="product.html">Publishers</a><a href="security.html">Premium content</a><a href="ai.html">Visibility insights</a><a href="/login">Client portal</a></div>
+      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Docs</a><a href="blog.html">Blog</a><a href="/login">Login</a><a href="#">System status</a></div>
+      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="support.html">Support</a><a href="/register">Get access</a><a href="privacy.html">Privacy</a></div>
+    <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 AdProof</span>
+      <span class="footer-terms"><a href="terms.html">Terms of Use</a><span class="legal-dot" aria-hidden="true">•</span><a href="privacy.html">Privacy Policy</a></span>
+    </div>
+  </div>
+</footer>
+<div class="toast" data-toast></div>
+<script src="app.js"></script>
+</body>
+</html>

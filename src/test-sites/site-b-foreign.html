@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Foreign site abuse test</title>
+  <style>
+    :root{--ink:#171717;--muted:#736b62;--line:rgba(20,20,20,.1);--card:#fff;--blue:#4a90d9;--bad:#9f3434;--good:#257a50;--warn:#9d6a16}*{box-sizing:border-box}body{margin:0;background:#f6f0e6;color:var(--ink);font-family:Inter,Arial,sans-serif}.top{background:#111;color:#fff}.top-inner{width:min(1120px,calc(100% - 42px));margin:auto;display:flex;justify-content:space-between;gap:16px;align-items:center;padding:16px 0}.top a{color:#fff;text-decoration:none;opacity:.82}.wrap{width:min(1120px,calc(100% - 42px));margin:30px auto;display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:24px}.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:24px;box-shadow:0 22px 70px rgba(72,59,39,.08)}h1{font-size:38px;line-height:1.08;letter-spacing:-1px;margin:0 0 14px}.lead{font-size:18px;line-height:1.7;color:var(--muted)}.pill{display:inline-flex;padding:7px 10px;border-radius:999px;background:#e7f2ff;color:#245b83;font-weight:700;font-size:12px}.status{margin-top:16px;padding:14px;border-radius:16px;background:#f7f7f7;border:1px solid var(--line);white-space:pre-wrap;line-height:1.55}.status.good{color:var(--good)}.status.bad{color:var(--bad)}.status.warn{color:var(--warn)}#ad-slot{width:300px;min-height:250px;margin:12px auto;border:1px dashed rgba(0,0,0,.2);border-radius:18px;display:grid;place-items:center;color:#897f73}pre{background:#111;color:#edf7ff;padding:14px;border-radius:16px;white-space:pre-wrap;word-break:break-word}.btn{display:inline-flex;align-items:center;justify-content:center;margin:4px 6px 4px 0;border-radius:14px;background:#111;color:#fff;text-decoration:none;padding:11px 14px;font-weight:760}.btn.blue{background:var(--blue)}.btn.ghost{background:#fff;color:#111;border:1px solid var(--line)}@media(max-width:900px){.wrap{grid-template-columns:1fr}h1{font-size:30px}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="top-inner"><strong>Foreign script abuse test</strong><nav><a href="/test-site">Test cases</a> · <a href="/account">Account</a></nav></div></header>
+  <main class="wrap">
+    <section class="card">
+      <span class="pill">Unauthorized integration check</span>
+      <h1>Can a different site reuse this project script?</h1>
+      <p class="lead">This page intentionally includes another project's public SDK snippet. The server must refuse to deliver the real SDK when the page host is not in the project's allowed domains.</p>
+      <p><strong>Project:</strong> {{PROJECT_NAME}}<br><strong>Allowed domains:</strong> {{ALLOWED_DOMAINS}}</p>
+      <p><a class="btn blue" href="{{LOCALHOST_URL}}">Open as localhost</a><a class="btn ghost" href="{{FOREIGN_URL}}">Open as 127.0.0.2 foreign host</a></p>
+      <div id="status" class="status warn">Waiting for SDK result...</div>
+      <h2>Injected foreign script tag</h2>
+      <pre>{{INJECTED_SNIPPET_ESC}}</pre>
+      <h2>What should happen</h2>
+      <p class="lead">If <code>127.0.0.2</code> is not allowed for the project, the server returns only a small blocked stub, records <code>sdk_domain_not_allowed</code>, and no session/events are accepted from this page.</p>
+    </section>
+    <aside class="card"><p class="pill">Ad slot</p><div id="ad-slot">ad slot placeholder</div><pre id="debug">projectKey: {{PROJECT_KEY}}
+host: ${location.host}
+blocked: waiting</pre></aside>
+  </main>
+  <script>
+    window.__AVP_TEST_PROJECT_KEY__={{PROJECT_KEY_JSON}};
+    function refresh(){
+      var s=document.getElementById('status'), d=document.getElementById('debug');
+      var blocked=window.__AVP_DOMAIN_BLOCKED__;
+      var token=window.__AVP_VISITOR_TOKEN__||'';
+      if(blocked){s.className='status bad'; s.textContent='Blocked by server domain guard:\n'+JSON.stringify(blocked,null,2);}
+      else if(token){s.className='status good'; s.textContent='SDK loaded and created visitorToken. This is expected only on an allowed domain.';}
+      else {s.className='status warn'; s.textContent='Waiting for SDK result. If the host is not allowed, a blocked stub should appear here.';}
+      if(d)d.textContent='projectKey: '+window.__AVP_TEST_PROJECT_KEY__+'\nhost: '+location.host+'\nblocked: '+(blocked?JSON.stringify(blocked):'no')+'\nvisitorToken: '+(token||'none');
+    }
+    setInterval(refresh,600); refresh();
+  </script>
+  <script>
+    // AVP TEMPLATE GUARD: this foreign-page test must lock if the injected SDK tag
+    // is missing, or if the injected tag does not match the expected project key.
+    (function(){
+      var expected={{PROJECT_KEY_JSON}};
+      var locked=false;
+      function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+      function hardLock(reason, details){
+        if(locked || document.getElementById('avp-template-hard-lock') || document.getElementById('avp-domain-block-lock')) return;
+        locked=true;
+        var payload={success:false,reason:reason,expectedProjectKey:expected,host:location.host,details:details||{}};
+        window.__AVP_TEMPLATE_LOCK__=payload;
+        try{document.documentElement.setAttribute('data-avp-lock', reason);}catch(e){}
+        try{document.documentElement.setAttribute('data-avp-template-lock', reason);}catch(e){}
+        document.body.innerHTML='<div id="avp-template-hard-lock" style="position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:rgba(0,0,0,.86);font-family:Inter,Arial,sans-serif;color:#fff;padding:24px"><div style="width:min(580px,calc(100vw - 40px));border:1px solid rgba(255,255,255,.22);border-radius:24px;background:rgba(18,18,18,.97);box-shadow:0 30px 90px rgba(0,0,0,.45);padding:28px"><div style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9cc7ff;margin-bottom:10px">AdProof verification</div><h1 style="margin:0 0 12px;font-size:30px;line-height:1.1">Access is locked</h1><p style="margin:0 0 14px;color:#d7d7d7;line-height:1.6">The injected SDK tag is missing or belongs to a different project. This page cannot create a trusted visitor session.</p><pre style="white-space:pre-wrap;word-break:break-word;background:#070707;border-radius:14px;padding:14px;color:#e9f3ff;font-size:13px;line-height:1.45">'+esc(JSON.stringify(payload,null,2))+'</pre></div></div>';
+      }
+      function keyFromScript(script){
+        if(!script) return '';
+        var direct=script.getAttribute('data-project-key')||'';
+        if(direct) return direct;
+        var src=script.getAttribute('src')||'';
+        var m=src.match(/\/sdk\/v[0-9]+\/([^\/?]+)(?:\.js|\/)/);
+        return m ? decodeURIComponent(m[1]) : '';
+      }
+      function inspect(){
+        if(window.__AVP_DOMAIN_BLOCKED__) return hardLock('sdk_domain_not_allowed', window.__AVP_DOMAIN_BLOCKED__);
+        var scripts=[].slice.call(document.querySelectorAll('script[src*="/sdk/v"]'));
+        var keys=scripts.map(keyFromScript).filter(Boolean);
+        if(!scripts.length) return hardLock('sdk_script_missing', {message:'No external AdProof SDK script tag was found on this page.'});
+        if(keys.indexOf(expected)===-1) return hardLock('sdk_script_wrong_project', {foundProjectKeys:keys, message:'The injected SDK script belongs to another project.'});
+      }
+      window.addEventListener('avp:domain-blocked', function(e){ hardLock('sdk_domain_not_allowed', e.detail||window.__AVP_DOMAIN_BLOCKED__||{}); });
+      setTimeout(inspect, 2500);
+      setTimeout(inspect, 6000);
+    })();
+  </script>
+  <!-- FOREIGN INJECTED SDK TAG: remove or replace this script tag to test stolen SDK reuse. Test pages default to dynamic boot-xxxx.js; add sdkMode=stable to test the static customer tag. -->
+  {{INJECTED_SNIPPET}}
+</body>
+</html>

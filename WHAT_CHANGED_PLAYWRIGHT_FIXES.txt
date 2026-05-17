@@ -1,0 +1,19 @@
+Fixed Playwright UI tests after the latest UI and hard-lock changes.
+
+Updated files:
+- tests/ui/admin-ui.spec.js
+- tests/ui/marketing-ui.spec.js
+- tests/ui/test-site-sdk.spec.js
+
+Why fixes were needed:
+- The product title changed from "Ad Protect" to "AdProof".
+- The home demo no longer has the old data-refresh-demo switcher.
+- The product page no longer has integration mode switching.
+- Admin dashboard has multiple tables, so locator('table') caused strict mode violations.
+- The connection issue debug text now says "Simulated connection issue".
+- Mobile SDK scenarios may expose either protected content or the new hard-lock state depending on validation result.
+
+Validation performed in this environment:
+- npm test passed successfully.
+- node --check passed for all updated UI spec files.
+- Full Playwright browser run could not be re-run here because the container has no downloaded Playwright Chromium. Viktor's local machine already has Chromium installed, so run npm run test:all locally.

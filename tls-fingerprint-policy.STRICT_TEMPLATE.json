@@ -1,0 +1,13 @@
+{
+  "learnMode": false,
+  "blockUnknown": true,
+  "strictAllowlist": true,
+  "requireSni": true,
+  "requireAlpnH2": true,
+  "minCipherSuites": 12,
+  "minExtensions": 7,
+  "allowJa3Md5": [
+    "PASTE_BROWSER_JA3_MD5_FROM_LOG_HERE"
+  ],
+  "denyJa3Md5": []
+}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdBlock gate test</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #f4f1ec;
+      color: #1a1a1a;
+      font-family: Georgia, 'Times New Roman', serif;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a1a;
+      color: #f4f1ec;
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 1.6rem; letter-spacing: 2px; text-transform: uppercase; }
+    header span { font-size: 0.75rem; opacity: 0.5; letter-spacing: 1px; }
+
+    .layout {
+      max-width: 1100px;
+      margin: 48px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 48px;
+    }
+
+    .shell-card {
+      background: rgba(255,255,255,.45);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 14px;
+      padding: 28px;
+      min-height: 280px;
+    }
+
+    .article-meta {
+      font-size: 0.8rem;
+      color: #888;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .article-title {
+      font-size: 2.2rem;
+      line-height: 1.3;
+      margin-bottom: 24px;
+      color: #111;
+    }
+
+    #content {
+      font-size: 1rem;
+      line-height: 1.9;
+      color: #333;
+      min-height: 160px;
+    }
+
+    #content p { margin-bottom: 20px; }
+
+    .loading-text {
+      color: #aaa;
+      font-style: italic;
+      font-size: 0.95rem;
+    }
+
+    .sidebar-label {
+      font-size: 0.7rem;
+      color: #aaa;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    #ad-container {
+      position: sticky;
+      top: 24px;
+      width: 300px;
+      min-height: 250px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Медіа</h1>
+    <span>AdBlock gate test</span>
+  </header>
+
+  <div class="layout">
+    <main class="shell-card">
+      <div class="article-meta">Київ · 4 травня 2026</div>
+      <h2 class="article-title">Тестова сторінка без захищеного контенту</h2>
+      <div id="content">
+        <p class="loading-text">Перевірка рекламного блоку...</p>
+      </div>
+    </main>
+
+    <aside>
+      <div class="sidebar-label">Реклама</div>
+      <div id="ad-container"></div>
+    </aside>
+  </div>
+
+  <noscript>
+    <div style="position:fixed;inset:0;background:#111;color:#fff;z-index:2147483647;display:flex;align-items:center;justify-content:center;font:18px Georgia,serif;text-align:center;padding:30px">
+      Для перегляду сторінки потрібен JavaScript і вимкнений блокувальник реклами.
+    </div>
+  </noscript>
+  <script>
+    // Если внешний /gate.js почему-то не загрузился или был заблокирован,
+    // страница не должна бесконечно висеть на "Перевірка...".
+    window.__GATE_BOOTED__ = false;
+    setTimeout(function () {
+      if (window.__GATE_BOOTED__) return;
+      document.body.style.overflow = 'hidden';
+      var content = document.getElementById('content');
+      if (content) content.innerHTML = '';
+      var overlay = document.createElement('div');
+      overlay.id = 'access-wall';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,10,.96);z-index:2147483647;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;padding:20px';
+      overlay.innerHTML = '<div style="background:#fff;max-width:460px;width:100%;border-radius:16px;padding:42px 34px;text-align:center;box-shadow:0 30px 90px rgba(0,0,0,.55)"><div style="font-size:52px;margin-bottom:18px">🚫</div><h2 style="font-size:1.45rem;line-height:1.35;margin:0 0 14px;color:#111">Вимкніть AdBlocker</h2><p style="font-size:.96rem;line-height:1.65;color:#555;margin:0 0 24px">Скрипт перевірки або рекламний блок не завантажився. Вимкніть блокувальник реклами для цього сайту й оновіть сторінку.</p><button onclick="location.reload()" style="width:100%;border:0;border-radius:10px;background:#111;color:#fff;padding:15px 22px;font:1rem Georgia,serif;cursor:pointer">Я вимкнув — оновити</button></div>';
+      document.body.appendChild(overlay);
+    }, 12000);
+  </script>
+  <script src="/gate.js" defer></script>
+</body>
+</html>

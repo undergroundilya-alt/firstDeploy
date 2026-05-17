@@ -1,0 +1,28 @@
+Added an architecture foundation pack based on the 19-point AdProof architecture discussion.
+
+New migration:
+- db/migrations/006_architecture_foundation_19_points.sql
+
+New docs:
+- docs/54_ARCHITECTURE_19_POINT_MASTER_PLAN.md
+- docs/55_DB_SCHEMA_BLOCKS_AND_MIGRATION_006.md
+- docs/56_SDK_CACHE_VERIFICATION_API_AND_FIRST_VISIT_UX.md
+- docs/57_SUPPORT_COMPLAINTS_AND_ADMIN_PANEL.md
+- docs/58_BACKUP_RESTORE_KILL_SWITCH_AND_INCIDENTS.md
+- docs/59_DOMAIN_OWNERSHIP_PRIVACY_AND_RETENTION.md
+
+New script/test:
+- scripts/architecture-audit.js
+- npm run architecture:audit
+
+Updated:
+- package.json scripts
+- local CI includes architecture:audit
+- CI/CD contract checks the architecture pack exists
+
+Run:
+- npm install
+- npm run db:migrate
+- npm run architecture:audit
+- npm run check
+- npm test

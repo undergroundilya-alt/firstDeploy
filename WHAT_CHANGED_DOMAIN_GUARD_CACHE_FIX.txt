@@ -1,0 +1,22 @@
+Domain guard / foreign script cache fix
+
+Problem found during manual test:
+- The foreign test page on 127.0.0.2 showed blocked: no, visitorToken: none.
+- That meant the blocked stub was not displayed even though the project allowed only localhost/127.0.0.1.
+
+Root cause:
+- The stable customer tag /sdk/v1/<publicKey>.js was returning the full SDK and was cacheable.
+- If the browser had already cached the SDK from an allowed host, the foreign page could reuse that cached response without hitting the server again.
+- Server-side API guards still rejected the session, so visitorToken stayed none, but the visual blocked stub did not appear.
+
+Fix:
+- /sdk/v1/<publicKey>.js now returns a tiny no-store project entry loader, not the full SDK.
+- The entry loader is checked by Referer/Origin on every load and then injects a dynamic boot script.
+- Project-specific SDK/boot/dynamic responses are no-store and include Vary: Referer, Origin.
+- Test stable-mode pages add a cache-buster query parameter so old browser cache cannot hide the manual test result.
+- Blocked SDK stub now also sets documentElement data-avp-domain-blocked and dispatches avp:domain-blocked.
+
+Expected manual result:
+- Site A localhost + allowed project key: SDK works.
+- Site B 127.0.0.2 + project key not allowed for 127.0.0.2: status shows Blocked by server domain guard.
+- visitorToken remains none on blocked foreign site.

@@ -1,0 +1,13 @@
+Added reliable automated smoke tests for the SaaS package.
+
+New files:
+- tests/e2e-smoke.test.js
+- docs/40_AUTOTESTS.md
+
+Updated:
+- package.json
+  - added npm run test:e2e
+  - added npm test = npm run check && npm run test:e2e
+
+Verified:
+- npm test

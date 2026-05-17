@@ -1,0 +1,17 @@
+Added a real Playwright UI test layer:
+
+- playwright.config.cjs
+- tests/ui/helpers.cjs
+- tests/ui/marketing-ui.spec.js
+- tests/ui/admin-ui.spec.js
+- tests/ui/test-site-sdk.spec.js
+- docs/41_PLAYWRIGHT_UI_TESTS.md
+
+New npm scripts:
+
+- npm run test:ui
+- npm run test:ui:headed
+- npm run test:ui:debug
+- npm run test:all
+
+The previous e2e-smoke test remains server/API focused and still runs via npm test.

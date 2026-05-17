@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/png" href="/icon.png">
+  <title>AdProof — Blog</title>
+  <meta name="description" content="Resource page with articles about ad visibility, protected content, and beta SaaS operations.">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header topbar">
+  <div class="container nav-wrap">
+    <a class="logo" href="index.html" aria-label="AdProof home">
+      <img class="logo-icon" src="/icon.png" alt="" aria-hidden="true">
+      <span class="logo-text">AdProof</span>
+    </a>
+    <button class="menu-toggle" type="button" data-menu-toggle aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav" data-nav aria-label="Main navigation">
+      <a href="index.html" class="">Home</a><a href="product.html" class="">Product</a><a href="ai.html" class="">AI</a><a href="security.html" class="">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="">Docs</a><a href="blog.html" class="active">Blog</a><a href="/login" class="">Login</a>
+      <a class="nav-cta" href="/register">Get access</a>
+    </nav>
+  </div>
+</header>
+<main class="site-main">
+
+  <section class="page-hero center">
+    <div class="container"><div class="eyebrow reveal"><span class="dot"></span> Resources</div><h1 class="reveal">Field notes for ad visibility teams</h1><p class="lead center-text reveal">Short educational articles for customers, founders, support teams, and developers.</p><div class="filter-bar reveal" data-filter-bar><button class="active" data-filter="all">All</button><button data-filter="product">Product</button><button data-filter="technical">Technical</button><button data-filter="growth">Growth</button></div></div>
+  </section>
+
+  <section class="section tight">
+    <div class="container grid cols-3 blog-grid">
+      <article class="card article-card reveal" data-category="product"><span class="pill">Product</span><h3>Why ad visibility needs project-level analytics</h3><p class="muted">Global averages hide the customer, domain, and page that actually needs attention.</p><a href="#">Read article</a></article>
+      <article class="card article-card reveal" data-category="technical"><span class="pill warn">Technical</span><h3>Public key vs secret key in a client SDK</h3><p class="muted">How to keep the frontend lightweight while the backend owns strict access decisions.</p><a href="#">Read article</a></article>
+      <article class="card article-card reveal" data-category="growth"><span class="pill good">Growth</span><h3>How to onboard first beta publishers</h3><p class="muted">Start with one controlled test page, validate the metrics, then expand protection to more content.</p><a href="#">Read article</a></article>
+      <article class="card article-card reveal" data-category="product"><span class="pill">Product</span><h3>What support teams need from ad-block incidents</h3><p class="muted">Clear reason, page URL, session context, and a next step beat a vague screenshot.</p><a href="#">Read article</a></article>
+      <article class="card article-card reveal" data-category="technical"><span class="pill warn">Technical</span><h3>Designing event payloads for useful analytics</h3><p class="muted">Every event should answer who, where, what happened, and why it matters.</p><a href="#">Read article</a></article>
+      <article class="card article-card reveal" data-category="growth"><span class="pill good">Growth</span><h3>What to measure in a commercial beta</h3><p class="muted">Visits, affected visitors, overlay rate, unlock rate, restored blocks, and integration health.</p><a href="#">Read article</a></article>
+    </div>
+  </section>
+
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-section"><h4>Product</h4><a href="product.html">Product</a><a href="ai.html">AI</a><a href="security.html">Security</a><a href="pricing.html">Pricing</a></div>
+      <div class="footer-section"><h4>Use cases</h4><a href="product.html">Publishers</a><a href="security.html">Premium content</a><a href="ai.html">Visibility insights</a><a href="/login">Client portal</a></div>
+      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Docs</a><a href="blog.html">Blog</a><a href="/login">Login</a><a href="#">System status</a></div>
+      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="support.html">Support</a><a href="/register">Get access</a><a href="privacy.html">Privacy</a></div>
+    <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 AdProof</span>
+      <span class="footer-terms"><a href="terms.html">Terms of Use</a><span class="legal-dot" aria-hidden="true">•</span><a href="privacy.html">Privacy Policy</a></span>
+    </div>
+  </div>
+</footer>
+<div class="toast" data-toast></div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: avp
+      POSTGRES_USER: avp
+      POSTGRES_PASSWORD: change_me_strong_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - avp-postgres:/var/lib/postgresql/data
+      - ../db/postgres_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+volumes:
+  avp-postgres:

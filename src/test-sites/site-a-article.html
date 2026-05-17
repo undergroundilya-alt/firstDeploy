@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AVP test article</title>
+  <style>
+    :root{--ivory:#f6f0e6;--ivory2:#fbf8f2;--ink:#1a1a1a;--muted:#766f66;--blue:#4a90d9;--line:rgba(20,20,20,.1);--card:rgba(255,255,255,.76);--good:#257a50;--bad:#9f3434}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top left,rgba(74,144,217,.12),transparent 34rem),linear-gradient(180deg,var(--ivory),var(--ivory2));font-family:Inter,Arial,sans-serif;color:var(--ink)}
+    header{position:sticky;top:0;z-index:10;background:#141414;color:#fff;padding:16px 26px;display:flex;gap:14px;justify-content:space-between;align-items:center}header a{color:#fff;text-decoration:none;opacity:.82}
+    .wrap{max-width:1160px;margin:28px auto;padding:0 20px;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 20px 70px rgba(72,59,39,.08)}
+    h1{font-size:36px;line-height:1.15;margin:0 0 14px}.lead{color:var(--muted);font-size:18px;line-height:1.7}.meta{font-size:12px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);margin-bottom:12px}.pill{display:inline-block;padding:6px 9px;border-radius:999px;background:#dff0ff;color:#245b83;font-size:12px;font-weight:760}.ad-label{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:#8d8376;margin:0 0 8px}
+    #ad-slot{width:300px;min-height:250px;margin:0 auto 18px}{{HIDE_SLOT_CSS}}
+    #protected-content{font-size:18px;line-height:1.9}.tools{display:grid;gap:10px}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:14px;background:#121212;color:#fff;padding:11px 14px;font-weight:760;text-decoration:none;cursor:pointer}.btn.blue{background:var(--blue)}.btn.ghost{background:rgba(255,255,255,.76);color:#111;border:1px solid var(--line)}
+    pre{white-space:pre-wrap;word-break:break-word;background:#111;color:#edf7ff;border-radius:16px;padding:14px;font-size:13px}.status{padding:12px;border-radius:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);color:var(--muted);font-size:14px;line-height:1.5}.status.good{color:var(--good)}.status.bad{color:var(--bad)}#server-premium{display:none;border-left:4px solid var(--good);padding:14px 16px;background:rgba(226,245,234,.7);border-radius:14px;margin-top:16px}.mini{font-size:13px;color:var(--muted);line-height:1.55}
+    @media(max-width:900px){.wrap{grid-template-columns:1fr}h1{font-size:28px}#ad-slot{width:100%}header{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+  <header><strong>AVP Test Client Site</strong><nav><a href="/">Marketing</a> · <a href="/test-site">Test cases</a> · <a href="/admin">Dashboard</a></nav></header>
+  <main class="wrap">
+    <article class="card">
+      <div class="meta">{{CASE_LABEL}} · project {{PROJECT_NAME}}</div>
+      <h1>Premium article with ad visibility verification</h1>
+      <p class="lead">This page behaves like a customer website: the ad slot is on the side and protected content opens only after ad container visibility is verified.</p>
+      {{CONTENT_HTML}}
+    </article>
+    <aside>
+      <div class="card">
+        <div class="ad-label">Advertisement test slot</div>
+        <div id="ad-slot"></div>
+        <div class="tools">
+          <a class="btn ghost" href="/test-site/article?projectKey={{PROJECT_KEY_URL}}">Normal</a>
+          <a class="btn ghost" href="/test-site/article?projectKey={{PROJECT_KEY_URL}}&simulateAdBlock=1">simulateAdBlock</a>
+          <a class="btn ghost" href="/test-site/article?projectKey={{PROJECT_KEY_URL}}&simulateConnectionIssue=1">simulateConnectionIssue</a>
+          <a class="btn ghost" href="/test-site/article?projectKey={{PROJECT_KEY_URL}}&case=hide-slot">hidden slot</a>
+          <a class="btn ghost" href="/test-site/article?projectKey={{PROJECT_KEY_URL}}&case=remove-after-unlock">remove after unlock</a>
+          <a class="btn ghost" href="/test-site/article?projectKey={{PROJECT_KEY_URL}}&case=server-gate">server-gate</a>
+        </div>
+        <p class="mini">After each test, open the dashboard and check recent events, reason, and domain/page analytics.</p>
+        <pre id="debugBox">projectKey: {{PROJECT_KEY}}
+case: {{CASE_LABEL}}
+visitorToken: waiting...</pre>
+      </div>
+    </aside>
+  </main>
+  <script>
+    window.__AVP_TEST_PROJECT_KEY__={{PROJECT_KEY_JSON}};
+    (function(){
+      const debug=document.getElementById('debugBox');
+      const updateDebug=()=>{ if(debug) debug.textContent='projectKey: '+window.__AVP_TEST_PROJECT_KEY__+'\ncase: '+{{CASE_LABEL_JSON}}+'\nvisitorToken: '+(window.__AVP_VISITOR_TOKEN__||'waiting...'); };
+      setInterval(updateDebug, 800); updateDebug();
+      {{REMOVE_AFTER_UNLOCK_JS}}
+      const btn=document.getElementById('serverUnlockBtn');
+      if(btn){ btn.addEventListener('click', async function(){ const status=document.getElementById('serverStatus'); const premium=document.getElementById('server-premium'); const token=window.__AVP_VISITOR_TOKEN__||''; if(!token){ status.textContent='visitorToken has not been created yet. Wait 1–2 seconds and click again.'; status.className='status bad'; return; } status.textContent='Checking visitorToken on backend...'; status.className='status'; try{ const r=await fetch('/test-site/backend-unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectKey:window.__AVP_TEST_PROJECT_KEY__,visitorToken:token})}); const data=await r.json(); status.textContent=JSON.stringify(data,null,2); status.className='status '+(data.allowed?'good':'bad'); if(data.allowed) premium.style.display='block'; }catch(e){ status.textContent=String(e); status.className='status bad'; } }); }
+    })();
+  </script>
+  <script>
+    // AVP TEMPLATE GUARD: the page itself must lock if the expected SDK tag is missing
+    // or if somebody manually inserts a script for another project. This is local QA
+    // protection; server-side domain/proof checks still remain the source of truth.
+    (function(){
+      var expected={{PROJECT_KEY_JSON}};
+      var locked=false;
+      function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+      function hardLock(reason, details){
+        if(locked || document.getElementById('avp-template-hard-lock')) return;
+        locked=true;
+        var payload={success:false,reason:reason,expectedProjectKey:expected,host:location.host,details:details||{}};
+        window.__AVP_TEMPLATE_LOCK__=payload;
+        try{document.documentElement.setAttribute('data-avp-lock', reason);}catch(e){}
+        try{document.documentElement.setAttribute('data-avp-template-lock', reason);}catch(e){}
+        document.body.innerHTML='<div id="avp-template-hard-lock" style="position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:rgba(0,0,0,.86);font-family:Inter,Arial,sans-serif;color:#fff;padding:24px"><div style="width:min(580px,calc(100vw - 40px));border:1px solid rgba(255,255,255,.22);border-radius:24px;background:rgba(18,18,18,.97);box-shadow:0 30px 90px rgba(0,0,0,.45);padding:28px"><div style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9cc7ff;margin-bottom:10px">AdProof verification</div><h1 style="margin:0 0 12px;font-size:30px;line-height:1.1">Access is locked</h1><p style="margin:0 0 14px;color:#d7d7d7;line-height:1.6">The page did not load the SDK script that belongs to this test project. Protected content stays unavailable until the correct project script is present and verified by the server.</p><pre style="white-space:pre-wrap;word-break:break-word;background:#070707;border-radius:14px;padding:14px;color:#e9f3ff;font-size:13px;line-height:1.45">'+esc(JSON.stringify(payload,null,2))+'</pre></div></div>';
+      }
+      function keyFromScript(script){
+        if(!script) return '';
+        var direct=script.getAttribute('data-project-key')||'';
+        if(direct) return direct;
+        var src=script.getAttribute('src')||'';
+        var m=src.match(/\/sdk\/v[0-9]+\/([^\/?]+)(?:\.js|\/)/);
+        return m ? decodeURIComponent(m[1]) : '';
+      }
+      function inspect(){
+        if(window.__AVP_DOMAIN_BLOCKED__) return hardLock('sdk_domain_not_allowed', window.__AVP_DOMAIN_BLOCKED__);
+        var scripts=[].slice.call(document.querySelectorAll('script[src*="/sdk/v"]'));
+        var keys=scripts.map(keyFromScript).filter(Boolean);
+        if(!scripts.length) return hardLock('sdk_script_missing', {message:'No external AdProof SDK script tag was found on this page.'});
+        if(keys.indexOf(expected)===-1) return hardLock('sdk_script_wrong_project', {foundProjectKeys:keys, message:'The inserted SDK script belongs to another project.'});
+      }
+      window.addEventListener('avp:domain-blocked', function(e){ hardLock('sdk_domain_not_allowed', e.detail||window.__AVP_DOMAIN_BLOCKED__||{}); });
+      setTimeout(inspect, 2500);
+      setTimeout(inspect, 6000);
+    })();
+  </script>
+  <!-- AVP CUSTOMER SDK TAG: remove or replace this script tag to test the allowed customer site. Test pages default to dynamic boot-xxxx.js; add sdkMode=stable to test the static customer tag. -->
+  {{TEST_SCRIPT_TAG}}
+</body>
+</html>

@@ -1,0 +1,20 @@
+Added in this build:
+
+1. Client account UI cleanup
+   - Removed the visible Cancel subscription block from /account.
+   - The backend offboarding/cancellation route remains for controlled testing and future email/offboarding flows, but it is not exposed on the customer website.
+
+2. Pricing polish
+   - Classic button text changed from "Start Classic" to "Classic".
+   - Enterprise button text changed from "Enterprise access" to "Enterprise".
+   - Removed the purple top stripe from the Enterprise pricing card.
+
+3. Staging mock analytics safety
+   - Added npm run stage:seed for staging/local mock analytics.
+   - Added .env.staging.example and .env.production.example.
+   - Mock analytics seeding now refuses to run in production unless ALLOW_PRODUCTION_MOCK_SEED=true is deliberately set.
+   - Added docs/50_STAGING_MOCK_ANALYTICS.md.
+
+4. Tests
+   - Updated client portal test to verify cancellation UI is hidden from the website.
+   - Added security test that verifies production mode refuses mock analytics seed.

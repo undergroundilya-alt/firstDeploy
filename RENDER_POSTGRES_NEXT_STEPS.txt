@@ -1,0 +1,44 @@
+AdProof — Render/PostgreSQL next steps
+
+Important: the database password was pasted into chat earlier. Treat it as exposed.
+Before production/beta testing with real data, rotate/reset the Render PostgreSQL password or recreate the database credentials.
+
+1) Wait until Render PostgreSQL status is Available.
+
+2) Create/choose a Render Web Service for this Node project.
+
+3) In the Web Service Environment, add variables from .env.render.example.
+Use the INTERNAL DATABASE URL when the web service and database are inside Render.
+Do not use the external URL unless you connect from your own PC.
+
+4) Set:
+DATABASE_URL=<Render internal database URL>
+ENABLE_APP_DB=true
+ENABLE_POSTGRES_STORAGE=true
+POSTGRES_AUTO_MIGRATE=true
+POSTGRES_BOOTSTRAP_FROM_JSON=true
+POSTGRES_SSL=false
+USE_HTTPS=false
+TRUST_PROXY=true
+PUBLIC_BASE_URL=https://YOUR_RENDER_WEB_SERVICE.onrender.com
+
+5) Google OAuth:
+In Google Cloud add redirect URI:
+https://YOUR_RENDER_WEB_SERVICE.onrender.com/auth/google/callback
+Add your Gmail to Test users while OAuth app is in testing mode.
+
+6) Start command on Render:
+npm start
+
+7) Local test command:
+npm install
+npm start
+Open http://localhost:3443/login if USE_HTTPS=false.
+
+8) After deploy, test in this order:
+/register
+/login
+/account
+create project
+copy SDK snippet
+test-site -> backend heartbeat/lease/analytics

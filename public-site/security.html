@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/png" href="/icon.png">
+  <title>AdProof — Security</title>
+  <meta name="description" content="Security center, public keys, secret keys, server verification, audit logs, and kill switch.">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header topbar">
+  <div class="container nav-wrap">
+    <a class="logo" href="index.html" aria-label="AdProof home">
+      <img class="logo-icon" src="/icon.png" alt="" aria-hidden="true">
+      <span class="logo-text">AdProof</span>
+    </a>
+    <button class="menu-toggle" type="button" data-menu-toggle aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav" data-nav aria-label="Main navigation">
+      <a href="index.html" class="">Home</a><a href="product.html" class="">Product</a><a href="ai.html" class="">AI</a><a href="security.html" class="active">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="">Docs</a><a href="blog.html" class="">Blog</a><a href="/login" class="">Login</a>
+      <a class="nav-cta" href="/register">Get access</a>
+    </nav>
+  </div>
+</header>
+<main class="site-main">
+
+  <section class="page-hero">
+    <div class="container split align-center">
+      <div class="reveal"><div class="eyebrow"><span class="dot"></span> Security center</div><h1>Secure beta logic without frontend-only trust</h1><p class="lead">Critical access logic should not live only on the client. AdProof separates public SDK keys from secret server-side verification keys.</p></div>
+      <div class="card security-score reveal" data-security-checklist><h3>Production readiness</h3><div class="score-circle"><span data-score>0%</span></div><label><input type="checkbox" checked> Allowed domains configured</label><label><input type="checkbox" checked> Secret key stored on backend</label><label><input type="checkbox"> CSP checked</label><label><input type="checkbox"> Kill switch tested</label></div>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <div class="container grid cols-3">
+      <div class="card feature reveal"><div class="icon">PK</div><h3>Public key</h3><p class="muted">Safe for frontend use. It identifies the project and loads allowed SDK settings.</p></div>
+      <div class="card feature reveal"><div class="icon">SK</div><h3>Secret key</h3><p class="muted">Stored only on the customer backend. It is used for strict server-to-server verification.</p></div>
+      <div class="card feature reveal"><div class="icon">KS</div><h3>Kill switch</h3><p class="muted">Emergency rollback for safely disabling checks while you fix a production issue.</p></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split">
+      <div class="card reveal"><h2>Server verify flow</h2><p class="muted">The frontend should not decide by itself whether premium content is shown in the strict flow. It reports a signal and the customer backend verifies access.</p><pre><code>POST /api/verify
+Authorization: Bearer sk_live_xxx
+{
+  "projectId": "prj_123",
+  "sessionId": "sess_456",
+  "pageUrl": "https://client.com/article"
+}</code></pre></div>
+      <div class="card reveal"><h2>Security notes</h2><ul class="clean-list"><li>Never expose secret keys in browser code.</li><li>Restrict public keys by allowed domains.</li><li>Rate-limit event and verify endpoints.</li><li>Keep audit logs for admin actions.</li><li>Test the strict flow on staging before production rollout.</li></ul></div>
+    </div>
+  </section>
+
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-section"><h4>Product</h4><a href="product.html">Product</a><a href="ai.html">AI</a><a href="security.html">Security</a><a href="pricing.html">Pricing</a></div>
+      <div class="footer-section"><h4>Use cases</h4><a href="product.html">Publishers</a><a href="security.html">Premium content</a><a href="ai.html">Visibility insights</a><a href="/login">Client portal</a></div>
+      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Docs</a><a href="blog.html">Blog</a><a href="/login">Login</a><a href="#">System status</a></div>
+      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="support.html">Support</a><a href="/register">Get access</a><a href="privacy.html">Privacy</a></div>
+    <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 AdProof</span>
+      <span class="footer-terms"><a href="terms.html">Terms of Use</a><span class="legal-dot" aria-hidden="true">•</span><a href="privacy.html">Privacy Policy</a></span>
+    </div>
+  </div>
+</footer>
+<div class="toast" data-toast></div>
+<script src="app.js"></script>
+</body>
+</html>

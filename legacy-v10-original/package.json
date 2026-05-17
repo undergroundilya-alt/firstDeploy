@@ -1,0 +1,16 @@
+{
+  "name": "antiblocker",
+  "version": "1.0.0",
+  "description": "TLS fingerprint gate + ad visibility content protector",
+  "main": "start.js",
+  "scripts": {
+    "start": "node start.js",
+    "backend": "node server.js",
+    "tls-gate": "node tls-fingerprint-proxy.js",
+    "certs": "node ensure-certs.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

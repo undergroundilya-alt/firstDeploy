@@ -1,0 +1,29 @@
+Added verbose test logging for both backend/API smoke tests and Playwright UI tests.
+
+Changed:
+- tests/e2e-smoke.test.js
+  - Added sectioned console output.
+  - Added explicit pass logs for health, public UI routes, test-site routes, SDK scripts, API contracts, admin auth, CSRF, metrics, persistence and production guard.
+  - Final summary now reports number of explicit checks and sections.
+
+- tests/ui/helpers.cjs
+  - Added uiStep(), uiLog() and mask() helpers.
+  - Admin login, demo key lookup and visitor token wait now print clear progress logs.
+
+- tests/ui/marketing-ui.spec.js
+  - Rewritten with test.step logging.
+  - Logs exactly what each marketing/responsive/interactive check verifies.
+
+- tests/ui/admin-ui.spec.js
+  - Rewritten with test.step logging.
+  - Logs auth redirect, login, dashboard, project creation and security center checks.
+
+- tests/ui/test-site-sdk.spec.js
+  - Rewritten with test.step logging.
+  - Logs SDK token creation, API calls, connection issue mode, hidden ad slot, server-gate backend unlock and secret key exposure check.
+
+- docs/40_AUTOTESTS.md
+  - Expanded with detailed coverage list and sample verbose output.
+
+- docs/41_PLAYWRIGHT_UI_TESTS.md
+  - Expanded with detailed Playwright coverage and sample output.

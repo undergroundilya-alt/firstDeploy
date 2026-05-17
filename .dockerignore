@@ -1,0 +1,14 @@
+.env
+.env.local
+.env.production
+.env.development
+.env.staging
+.git
+.gitignore
+node_modules
+npm-debug.log
+.DS_Store
+certs
+storage
+playwright-report
+coverage

@@ -1,0 +1,21 @@
+AdProof — foreign script/domain abuse test
+
+Added:
+- Server-side SDK domain guard for /sdk/v1/<publicKey>.js and dynamic/boot SDK URLs.
+- Browser script requests are checked by Referer origin against project.allowedDomains.
+- If a different site tries to reuse a customer's public SDK snippet, the real SDK is not delivered.
+- The server returns a tiny safe blocked stub and records an abuse event: sdk_domain_not_allowed.
+- Added a second test site: /foreign-test-site?projectKey=<publicKey>
+- Test page includes links for localhost vs 127.0.0.1 so you can verify domain isolation locally.
+
+How to test locally:
+1. Ensure the project allowed domains include localhost but not 127.0.0.1.
+2. Start the server: npm start
+3. Open /test-site and click Foreign site abuse test.
+4. Open the localhost version: SDK should work if localhost is allowed.
+5. Open the 127.0.0.1 version: SDK should be blocked if 127.0.0.1 is not allowed.
+6. Check project events/analytics for sdk_domain_not_allowed.
+
+Notes:
+- Direct SDK file requests without Referer are still allowed for diagnostics and automated tests.
+- Real protection is layered: SDK delivery guard + API Origin checks + visitor session/project matching + signed event/proof verification.

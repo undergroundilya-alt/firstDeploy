@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: adproof-staging
+    env: node
+    plan: starter
+    buildCommand: npm ci && npm test
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: NODE_ENV
+        value: staging
+      - key: USE_HTTPS
+        value: false
+      - key: ENABLE_APP_DB
+        value: true
+      - key: ENABLE_POSTGRES_STORAGE
+        value: true
+      - key: POSTGRES_DIRECT_EVENT_WRITE
+        value: true
+      - key: POSTGRES_AUTO_MIGRATE
+        value: true
+      - key: POSTGRES_SSL
+        value: true
+      - key: AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH
+        value: true
+      - key: ALLOW_MOCK_DATA
+        value: true
+      - key: ALLOW_PRODUCTION_MOCK_SEED
+        value: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false

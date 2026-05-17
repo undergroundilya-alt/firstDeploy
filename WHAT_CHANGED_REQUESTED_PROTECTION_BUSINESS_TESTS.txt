@@ -1,0 +1,55 @@
+AdProof SaaS — requested protection/business test update
+
+Added runtime/backend functionality:
+- /api/v1/heartbeat
+  Server-side heartbeat/lease endpoint. If ad status is failed/hidden, visitor session becomes failed and lease is not valid.
+
+- /api/v1/lease-status
+  Read-only endpoint to check whether a visitor session currently has an active access lease.
+
+- SDK hard lock
+  For blocking validation failures, SDK can replace the body with a hard lock screen instead of leaving readable page HTML behind a simple overlay. Soft connection issues still use a soft overlay.
+
+- /api/v1/leads
+  Backend endpoint for contact/demo form submissions. Leads are stored in a separate JSON file configured by LEADS_FILE.
+
+- /auth/register
+  Client registration endpoint. Client accounts are stored in a separate JSON file configured by AUTH_DB_FILE.
+
+- /auth/google/start and /auth/github/start
+  Safe OAuth stubs. They return 501 until real OAuth credentials and callback handling are configured.
+
+- /api/v1/billing/card-verification
+  Safe billing/card-verification stub. It refuses to fake payment verification unless a real provider adapter is configured.
+
+- /api/v1/trial-status
+  Server-side trial countdown API for a frontend trial badge/banner.
+
+- public-site/admin.html is now included in the marketing static file allow-list.
+- Latest static public-site HTML/CSS/JS was copied into public-site.
+
+Added tests:
+- tests/requested-protection-and-business.test.js
+- npm run test:requested
+- npm test now runs: check + e2e smoke + requested protection/business tests
+
+Covered by new tests:
+- heartbeat endpoint and failed ad-zone status
+- lease denial before proof/heartbeat
+- hard-lock SDK markers
+- backend unlock denial after failed ad validation
+- signed proof tamper rejection, Charles-like payload edit case
+- lead form backend storage
+- client registration in separate auth DB
+- duplicate registration rejection
+- Google/GitHub OAuth routes fail safely when unconfigured
+- card verification route fails safely when billing provider is unconfigured
+- server-side trial status API
+- admin MFA generation flow
+- per-project dashboard/reason area visibility
+- Docker/cluster/load-test scaffolding existence
+
+Intentionally not faked:
+- Absolute console-command ban. Browsers are user-controlled, so this cannot be made reliable.
+- Random phantom SDK files as primary security. The primary control is server-side lease + heartbeat + integrity.
+- Real card verification. Requires Stripe/LiqPay/WayForPay/etc. provider integration.

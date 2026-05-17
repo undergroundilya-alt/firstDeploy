@@ -1,0 +1,17 @@
+Final visual/auth/pricing polish
+
+- Login and Register auth cards are now centered horizontally and vertically.
+- Login title is rendered as h2.
+- Register title is rendered as h2.
+- Register page is now a single centered card.
+- Removed the "What happens next" side card from registration.
+- Centered the "Already have an account? Login." note.
+- Centered the "No account yet? Create account." note.
+- Removed the old email helper text on login.
+- Changed page background to a warmer ivory tone without strong yellow tint.
+- Removed Monthly / Yearly -20% billing toggle from Pricing.
+- Pricing pill labels Beta / Classic / Usage Scale keep compact width.
+- Pricing card buttons remain bottom-aligned.
+- Custom pricing title uses margin-block: 10px and paragraph margin: 0.
+- Tests updated for h2 auth titles.
+- Full npm test passes.

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/png" href="/icon.png">
+  <title>AdProof — Support</title>
+  <meta name="description" content="Support, sales, and beta access request page for AdProof.">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header topbar">
+  <div class="container nav-wrap">
+    <a class="logo" href="index.html" aria-label="AdProof home">
+      <img class="logo-icon" src="/icon.png" alt="" aria-hidden="true">
+      <span class="logo-text">AdProof</span>
+    </a>
+    <button class="menu-toggle" type="button" data-menu-toggle aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav" data-nav aria-label="Main navigation">
+      <a href="index.html" class="">Home</a><a href="product.html" class="">Product</a><a href="ai.html" class="">AI</a><a href="security.html" class="">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="">Docs</a><a href="blog.html" class="">Blog</a><a href="/login" class="">Login</a>
+      <a class="nav-cta" href="/register">Get access</a>
+    </nav>
+  </div>
+</header>
+<main class="site-main">
+
+  <section class="page-hero">
+    <div class="container split align-center">
+      <div class="reveal">
+        <div class="eyebrow"><span class="dot"></span> Support</div>
+        <h1>Contact sales for custom traffic</h1>
+        <p class="lead">Use this page for enterprise traffic, custom limits, revenue-share discussions, or larger publisher setups.</p>
+      </div>
+      <div class="card reveal">
+        <h2>Fast answers</h2>
+        <ul class="clean-list">
+          <li>Integration review</li>
+          <li>Snippet placement</li>
+          <li>Allowed domain setup</li>
+          <li>Server verify planning</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <div class="container split align-start">
+      <div class="card support-form-card reveal">
+        <span class="pill good">Contact sales</span>
+        <h2>Contact sales</h2>
+        <form class="lead-form" data-lead-form>
+          <label>Name
+            <input type="text" name="name" autocomplete="name" placeholder="Your name">
+          </label>
+          <label>Email
+            <input type="email" name="email" autocomplete="email" placeholder="you@example.com" required>
+          </label>
+          <label>Company or website
+            <input type="text" name="company" autocomplete="organization" placeholder="example.com">
+          </label>
+          <label>What monthly traffic volume are you planning to verify?
+            <textarea name="message" placeholder="Tell us your expected monthly checks, daily visits, number of websites, ad slots, or custom enterprise traffic needs."></textarea>
+          </label>
+          <button class="btn blue" type="submit">Send request</button>
+          <p class="form-status" data-form-status></p>
+        </form>
+      </div>
+
+      <div class="card support-checklist reveal">
+        <span class="pill purple">Before we reply</span>
+        <h2>Prepare your traffic context</h2>
+        <ul class="clean-list">
+          <li>Estimate your daily visits or monthly ad visibility checks.</li>
+          <li>List the websites or domains you want to connect.</li>
+          <li>Decide whether you need fixed pricing, revenue-share, or a hybrid model.</li>
+          <li>Prepare one test page if you want a technical integration review.</li>
+          <li>Mention whether you plan to use frontend gating or server-gate verification.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-section"><h4>Product</h4><a href="product.html">Product</a><a href="ai.html">AI</a><a href="security.html">Security</a><a href="pricing.html">Pricing</a></div>
+      <div class="footer-section"><h4>Use cases</h4><a href="product.html">Publishers</a><a href="security.html">Premium content</a><a href="ai.html">Visibility insights</a><a href="/login">Client portal</a></div>
+      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Docs</a><a href="blog.html">Blog</a><a href="/login">Login</a><a href="#">System status</a></div>
+      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="support.html">Support</a><a href="/register">Get access</a><a href="privacy.html">Privacy</a></div>
+    <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 AdProof</span>
+      <span class="footer-terms"><a href="terms.html">Terms of Use</a><span class="legal-dot" aria-hidden="true">•</span><a href="privacy.html">Privacy Policy</a></span>
+    </div>
+  </div>
+</footer>
+<div class="toast" data-toast></div>
+<script src="app.js"></script>
+</body>
+</html>

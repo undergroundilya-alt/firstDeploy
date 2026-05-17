@@ -1,0 +1,30 @@
+AdProof update — auth/header/registration validation
+
+Changes:
+1. /login and /register now use the same marketing-style header as the public website.
+2. Google button uses the provided Google SVG icon while keeping the same button sizing behavior.
+3. Register form now includes:
+   - fullName
+   - companyName
+   - phone
+   - email
+   - password
+4. Phone input allows digits only in the browser and is validated on the backend.
+5. Backend registration validation:
+   - full name: required, first and last name required
+   - company name: required, 2–255 characters
+   - phone: required, 7–20 digits
+   - email: required, 5–255 chars, must be valid and contain @
+   - password: required, 8–20 chars, at least one letter and one number
+   - HTML/script-like input is rejected and all rendered values are escaped
+6. Registration creates a client account and session, then redirects to /account.
+7. Duplicate email shows a friendly account-exists message.
+8. PostgreSQL schema now supports full_name, phone and email_verified.
+9. JSON fallback auth DB stores fullName and phone as well.
+10. Non-heading auth/portal UI text has font-weight capped at 600 where applicable.
+
+Tests:
+npm test passed:
+- 47 backend/API checks
+- 40 requested security/business checks
+- client portal tests including invalid input, script-like input rejection, duplicate account handling, fullName/phone storage

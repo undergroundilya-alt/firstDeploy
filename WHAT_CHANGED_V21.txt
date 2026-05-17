@@ -1,0 +1,15 @@
+AVP v2.1 cluster commercial beta changes
+
+- Fixed PostgreSQL migrations: fresh 001_init.sql now creates avp_users, avp_companies, avp_projects, avp_project_secrets, avp_visitor_sessions, avp_events, avp_daily_stats, avp_audit_log, avp_alerts, avp_usage_counters and avp_event_ingestion_offsets.
+- Kept the original WebCrypto/canvas/server-gate/MutationObserver/rerender/DOM-noise/heartbeat/dynamic-SDK heart untouched.
+- Cluster mode now treats Redis + PostgreSQL as mandatory infrastructure, not optional additions.
+- In cluster mode JSON no longer persists event counters/recent events by default: PERSIST_EVENT_STATS_IN_JSON=false.
+- Visitor sessions use Redis as the primary runtime store in cluster mode.
+- Event flow is Redis Stream -> ingestion worker -> PostgreSQL.
+- PostgreSQL event writes are batched through saveEvents() and worker-ingestion.
+- Dashboard can sync analytics/recent events from PostgreSQL instead of relying on JSON event stats.
+- SDK responses can be short-cacheable for CDN/Nginx while API responses remain no-store.
+- Added Nginx cluster config with /sdk/ cache and real client IP headers.
+- Updated docker-compose production topology: nginx, scalable avp-api, Redis, PostgreSQL, ingestion worker, analytics worker, maintenance worker.
+- Added PostgreSQL maintenance/retention helper.
+- Added cluster-model load test for 5-10 clients, active tabs, heartbeat and rerender simulation.

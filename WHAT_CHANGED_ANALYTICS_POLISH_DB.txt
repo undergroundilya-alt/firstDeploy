@@ -1,0 +1,8 @@
+Analytics polish + DB reminder
+
+- Renamed Open full view / Full view to Analytics.
+- Added /account/projects/:projectId/analytics URL while keeping /full as a backward-compatible alias.
+- Reworked Analytics page width, font weight and cards to match the rest of the client portal instead of stretching like a header band.
+- Replaced the large red JSON fallback warning with a compact source note.
+- .env is prepared for remote Postgres mode: ENABLE_APP_DB=true, ENABLE_POSTGRES_STORAGE=true, POSTGRES_DIRECT_EVENT_WRITE=true, POSTGRES_SSL=true and AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH=true.
+- You still need to paste your own DATABASE_URL into .env locally. Do not commit or share it.

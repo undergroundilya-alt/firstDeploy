@@ -1,0 +1,40 @@
+AVP v1.8.0-production-ready-beta
+
+Added the full production hardening layer requested in the review:
+1 production guard
+2 separated runtime sessions
+3 admin audit NDJSON logs
+4 secret rotation
+5 scoped API keys
+6 TOTP MFA
+7 role model
+8 alerts/security logging
+9 restore-drill
+10 stronger state validation
+11 corruption quarantine
+12 protected /metrics
+13 private /docs in production
+14 stricter CORS
+15 trusted proxy handling
+16 SDK versioning
+17 canary rollout
+18 global/project kill switches
+19 fallback policy model
+20 legal/privacy/product positioning docs
+21 adaptive performance budget
+22 browser compatibility matrix
+23 load-test script
+24 event write queue/dead-letter
+25 NDJSON export/compact/Postgres import scaffold
+26 dashboard daily stats + top domains/browsers
+27 recent-only memory state with NDJSON full history
+28 project-level limits
+29 abuse protection events
+30 safer product positioning
+
+Also added:
+- USE_HTTPS=false mode for Render/reverse proxies
+- db/postgres_schema.sql
+- deploy/docker-compose.postgres.yml
+- render.yaml
+- docs/29_POSTGRES_AND_RENDER_DEPLOY.md

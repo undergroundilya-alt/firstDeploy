@@ -1,0 +1,43 @@
+AVP v1.9 commercial beta
+
+Added P0/P1/P2 hardening requested for a small serious customer pool:
+
+P0:
+- Persistent STORAGE_ROOT layout and Render persistent disk config.
+- Production .env example without demo credentials.
+- REQUIRE_MFA_IN_PRODUCTION defaults to true in production.
+- /docs stays private in production.
+- /metrics requires token in production.
+- Request ID on every response and production-safe 500 responses.
+- External backup hooks: EXTERNAL_BACKUP_DIR and EXTERNAL_BACKUP_COMMAND.
+- Scheduled restore drill interval inside server.
+- Local generated certs removed from the distributable archive.
+- Domain verification tokens and .well-known verification.
+- Project JSON export and offboarding delete flow.
+- Full API load test flow: ping, session, challenge, ad fragment, bait hit, signed proof, signed batch event.
+
+P1:
+- Batch events endpoint /api/v1/events/batch.
+- SDK event batching with sendBeacon on pagehide/hidden.
+- Signed client event envelopes with audit-only or strict mode.
+- Per-project plan/quota model: beta, pilot, growth.
+- Per-visitor event rate limits.
+- Project path allow/deny rules.
+- Custom overlay blocking message per project.
+- Project status / integration health page.
+- Dashboard links to project status.
+- CSV and JSON export.
+- Alerts for 429/500, bait-hit drop, external backup, restore drill.
+- Old NDJSON compression to .gz.
+
+P2 scaffolding:
+- PostgreSQL migration scaffold.
+- PostgreSQL adapter placeholder.
+- Redis/KeyDB queue adapter placeholder.
+- Ingestion worker scaffold.
+- Analytics aggregation worker scaffold.
+- Production docker compose scaffold can be added around these adapters.
+- Docs for migration, billing, usage metering, SLA, privacy, real browser testing and ad slot integration.
+
+Not magically included:
+- A live PostgreSQL/Redis account, CDN provider, object-storage bucket, real payment provider and penetration test cannot be embedded into a zip. The project now includes the code hooks, schema, adapters and operational docs needed to connect them.

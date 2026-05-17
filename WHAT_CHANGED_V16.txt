@@ -1,0 +1,49 @@
+Ad Visibility Verification SaaS v1.6 beta hardened — changes from v15
+
+PostgreSQL was intentionally NOT added.
+
+Added / changed:
+1. PBKDF2-SHA256 admin password hashing.
+2. Legacy v15 admin hash compatibility with upgrade after successful login.
+3. Admin CSRF tokens for logout, project create/update and manual backup.
+4. AES-256-GCM encrypted project secret keys in JSON state.
+5. Manual backup button in dashboard.
+6. Automatic local JSON-state backup with retention.
+7. /healthz liveness endpoint.
+8. /readyz readiness endpoint.
+9. /metrics Prometheus-style metrics endpoint.
+10. Dynamic SDK bootstrap route: /sdk/v1/{projectKey}/boot-*.js.
+11. Per-page dynamic SDK file name loaded by bootstrap.
+12. DOM noise default changed to 500–700 generated elements.
+13. TLS fingerprint proxy made configurable by env.
+14. New start:tls-gated mode for main SaaS through TLS fingerprint gate.
+15. .env.example expanded with SESSION_SECRET, ENCRYPTION_KEY and backup settings.
+16. deploy/nginx-avp.conf added for public TLS reverse proxy.
+17. deploy/systemd-avp.service added.
+18. deploy/backup-cron.example added.
+19. README.md rewritten for v1.6.
+20. README_HARDENED_V16.md added.
+21. docs/20_V16_CHANGELOG.md added.
+22. docs/21_DEPLOYMENT_TLS_REVERSE_PROXY.md added.
+23. docs/22_AUTH_AND_SECRET_STORAGE.md added.
+24. docs/23_MONITORING_AND_BACKUP.md added.
+25. docs/24_PRIVACY_NOTICE_TEMPLATE.md added.
+26. docs/25_LEGAL_AND_COMMERCIAL_CHECKLIST.md added.
+27. docs/26_V16_FEATURE_INVENTORY.md added.
+28. openapi.yaml updated to v1.6 endpoints.
+29. package.json bumped to 1.6.0-beta-hardened.
+30. package-lock.json bumped to 1.6.0-beta-hardened.
+31. .gitignore updated for backups and generated JSON state.
+
+Preserved:
+- WebCrypto proof.
+- Canvas proof.
+- bait pixel/script observation.
+- neutral connectivity vs ad resource probe.
+- MutationObserver restore.
+- scheduled server rerender every 30 seconds.
+- skeleton loader.
+- heartbeat.
+- dashboard, companies, projects, CSV export.
+- server-to-server verify API.
+- legacy v10 original files.

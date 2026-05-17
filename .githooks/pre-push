@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[pre-push] Running AdProof local CI checks before push..."
+npm run ci:local
+
+echo "[pre-push] Checks passed. Push allowed."

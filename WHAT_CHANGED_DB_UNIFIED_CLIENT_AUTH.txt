@@ -1,0 +1,26 @@
+AdProof — unified client auth DB fix
+
+What changed
+- Client accounts are now treated as one DB-backed entity regardless of provider: email/password or Google OAuth.
+- When DATABASE_URL or POSTGRES_URL is configured, registration, Google OAuth login, client sessions and password reset tokens use the Postgres app DB table avp_client_accounts.
+- JSON auth storage remains only as a local fallback when no Postgres connection is configured.
+- Added AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH=true for deployments where local JSON fallback must be forbidden.
+- Added clearer logs for app DB status, Google OAuth account creation and password reset lookups.
+- Added /debug/app-db for local diagnostics. It masks and hashes email addresses.
+- /debug/auth-accounts now also reports appDbConfigured, appDbStatus and whether DB-backed auth is required.
+- If reset password cannot check the account DB because DB is required but not connected, the page now shows a database connection message instead of pretending the email does not exist.
+
+Important env variables
+DATABASE_URL=postgres://USER:PASSWORD@HOST:PORT/DBNAME
+ENABLE_APP_DB=true
+AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH=true
+
+Local debug URLs
+http://localhost:3443/debug/app-db
+http://localhost:3443/debug/auth-accounts
+http://localhost:3443/readyz
+
+Notes
+- If appDbEnabled=false and appDbConfigured=false, the app cannot write Google/client accounts to Postgres. Fill DATABASE_URL or POSTGRES_URL.
+- If AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH=false, local JSON fallback still works for offline development.
+- If AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH=true and the DB is missing/unavailable, client registration/login/reset fails loudly instead of silently writing local JSON.

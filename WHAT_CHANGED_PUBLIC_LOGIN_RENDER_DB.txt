@@ -1,0 +1,5 @@
+Changed public marketing navigation: Admin link is replaced with Login.
+All public header links now lead users to /login and /register for the client portal.
+Added public-site/icon.png and allowed icon.png in the static file allow-list.
+Added .env.render.example and RENDER_POSTGRES_NEXT_STEPS.txt for Render PostgreSQL setup.
+Important: database credentials must be configured in Render Environment and not committed into the project.

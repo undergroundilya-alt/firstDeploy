@@ -1,0 +1,21 @@
+V17 beta-json-hardened
+
+Added:
+- Atomic JSON state writes via temp file + fsync + rename.
+- Append-only NDJSON event log in data/events/.
+- Daily event log rotation: events-YYYY-MM-DD.ndjson.
+- Event log retention via EVENT_LOG_RETENTION_DAYS.
+- Restore-check validation for current state, latest backups and latest event logs.
+- npm run restore-check command.
+- Backup creation now validates source state and created backup.
+- globalEvents is now only a recent-events cache, default 1000 events.
+- per-project recentEvents limit is configurable through MAX_RECENT_PROJECT_EVENTS.
+- readyz now reports eventLogDir and recentEventsKept.
+
+Still intentionally not added:
+- PostgreSQL.
+- multi-server storage.
+- billing-grade reporting.
+- legal-grade analytics archive.
+
+This version is better for closed beta pilots, but it is still not full production SaaS storage.

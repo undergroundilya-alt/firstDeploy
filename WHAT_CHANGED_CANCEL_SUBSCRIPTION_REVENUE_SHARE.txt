@@ -1,0 +1,19 @@
+Added in this build:
+
+1. Backend offboarding/cancellation flow; not exposed on the client website.
+   - POST /account/cancel-subscription remains backend-only/not linked from the customer UI.
+   - CSRF protected.
+   - Deletes client account from DB when deliberately invoked.
+   - Removes sessions, reset tokens, project links, linked project analytics/events and project configs.
+   - Marketing consent is marked as false for that email.
+   - Sends a cancellation test email through the same SMTP/outbox pipeline.
+
+2. Cancellation audit/debug.
+   - New table: avp_subscription_cancellations
+   - New migration: db/migrations/005_subscription_cancellation.sql
+   - Debug endpoint: /debug/subscription-cancellations
+   - Email status is visible through /debug/email-outbox
+
+3. Enterprise revenue-share wording.
+   - Pricing page now explains that percentage pricing should be based on verified recovered ad revenue.
+   - Added docs/42_ENTERPRISE_REVENUE_SHARE.md with formulas and invoice fields.

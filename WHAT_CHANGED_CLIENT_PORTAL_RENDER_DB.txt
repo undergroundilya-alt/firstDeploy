@@ -1,0 +1,30 @@
+Added client registration/login/account pages and DB-ready storage.
+
+New public pages:
+- /register
+- /login
+- /account
+- /logout
+
+New client portal behavior:
+- register creates a client account
+- login creates avp_client session cookie
+- account page shows trial status, project list, SDK snippet
+- client can create a project from /account
+- created projects are linked to the client account
+
+Storage:
+- local JSON fallback remains available
+- optional PostgreSQL app DB is enabled by DATABASE_URL + ENABLE_APP_DB=true
+- migration 003 creates client accounts, client sessions, project links and leads tables
+
+Existing owner dashboard remains separate:
+- /admin/login
+- /admin
+- /admin/security
+
+Testing focus:
+- register/login/logout
+- account project creation
+- DB fallback and PostgreSQL migration
+- SDK/test-site to backend project events

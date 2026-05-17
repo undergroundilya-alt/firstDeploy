@@ -1,0 +1,21 @@
+Strict test-site SDK lock update
+
+What changed:
+- Added a local template watchdog to src/test-sites/site-a-article.html.
+- Added a local template watchdog to src/test-sites/site-b-foreign.html.
+- If the expected AdProof SDK script is missing, the page hard-locks with sdk_script_missing.
+- If an SDK script from another project is inserted, the page hard-locks with sdk_script_wrong_project.
+- If the server domain guard blocks the SDK, the blocked stub now replaces the page with a full-screen hard-lock overlay.
+- The server blocked SDK stub now includes #avp-domain-block-lock and data-avp-lock=domain_guard markers.
+- Security tests were updated to verify the new hard-blocked domain guard stub.
+
+Manual checks:
+1. Site A + expected script + allowed host => should work.
+2. Site A + wrong project script => hard-lock: sdk_script_wrong_project.
+3. Site A with SDK script removed => hard-lock: sdk_script_missing.
+4. Site B + stolen script from a project that does not allow 127.0.0.2 => hard-lock: sdk_domain_not_allowed.
+5. Console unsigned events still return 403 / unsigned_event.
+
+Verified:
+- npm run check
+- npm test

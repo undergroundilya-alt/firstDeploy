@@ -1,0 +1,11 @@
+This build auto-loads .env from the project root before reading USE_HTTPS, PUBLIC_BASE_URL, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.
+
+Replace in .env:
+GOOGLE_CLIENT_SECRET=REPLACE_WITH_NEW_GOOGLE_CLIENT_SECRET
+
+Then run:
+npm install
+npm start
+
+Expected local URL:
+http://localhost:3443/login

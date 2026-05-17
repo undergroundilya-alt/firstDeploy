@@ -1,0 +1,29 @@
+AdProof reset password + Google OAuth storage fix
+
+What changed:
+- Reset password now checks storage/auth-accounts.json first.
+- If the account is not there, reset also scans the main storage/saas-state.json for OAuth/client-style account records.
+- If the email is found in saas-state.json, the account is automatically mirrored into storage/auth-accounts.json and reset continues.
+- Google OAuth account creation now writes an explicit JSON auth mirror in local JSON mode.
+- Added stronger logs:
+  - google_oauth_profile_received
+  - google_oauth_login_account_ready
+  - client_account_saved_json_auth_db
+  - client_account_updated_json_auth_db
+  - auth_json_account_mirrored
+  - password_reset_account_lookup
+- /debug/auth-accounts now shows both auth DB accounts and detected saas-state account candidates.
+- Added /debug/storage-files to list local JSON storage files and masked account-like email candidates.
+
+How to test locally:
+1. npm install
+2. npm start
+3. Login with Google.
+4. Open http://localhost:3443/debug/auth-accounts
+5. Check that accountCount or stateCandidateCount shows the Google email hash.
+6. Try /reset-password with the same email.
+7. Success page should show only: A one-time reset link was sent.
+8. Check terminal logs for password_reset_account_lookup and email_smtp_sent / smtp_failed.
+
+Security note:
+The debug endpoints are disabled in NODE_ENV=production.

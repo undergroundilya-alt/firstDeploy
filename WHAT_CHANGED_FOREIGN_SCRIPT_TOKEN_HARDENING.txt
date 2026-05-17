@@ -1,0 +1,12 @@
+Added stronger foreign-script and console-forgery coverage.
+
+- Removed duplicate /customer-test-site route; use /test-site/article as the legitimate test customer site.
+- Added explicit /foreign-test-site route that pastes another project SDK <script> tag.
+- Test launcher now shows Customer test site and Foreign script tag reuse separately.
+- Foreign page displays the exact injected script snippet.
+- SDK events are now strict by default: unsigned console events are rejected.
+- Default/new projects include hardening.signedEventsStrict=true.
+- SDK no longer exposes window.__AVP_VISITOR_TOKEN__ globally on normal pages; it exposes it only on test pages or explicit debug mode.
+- Non-UI security test now verifies unsigned /api/v1/events rejection and unsigned batch rejection.
+- Playwright UI test includes a foreign script-tag reuse scenario.
+- Added docs/49_TWO_TEST_SITES_AND_SCRIPT_THEFT_TESTS.md.

@@ -1,0 +1,148 @@
+# AVP v2.1 cluster-ready production compose.
+# Recommended chain:
+# Cloudflare/CDN/WAF -> nginx reverse proxy -> 2+ avp-api replicas -> Redis -> ingestion workers -> PostgreSQL -> analytics worker.
+# Scale API nodes with:
+#   docker compose -f deploy/docker-compose.production.yml up -d --scale avp-api=2
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - avp-api
+    ports:
+      - '80:80'
+    volumes:
+      - ./nginx-cluster.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_cache:/var/cache/nginx
+
+  avp-api:
+    build: ..
+    command: npm start
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      USE_HTTPS: 'false'
+      HOST: 0.0.0.0
+      PORT: 3443
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      STORAGE_ROOT: /app/storage
+      DATA_FILE: /app/storage/saas-state.json
+      RUNTIME_FILE: /app/storage/runtime-sessions.json
+      BACKUP_DIR: /app/storage/backups
+      EVENT_LOG_DIR: /app/storage/events
+      AUDIT_LOG_DIR: /app/storage/audit
+      ALERT_LOG_DIR: /app/storage/alerts
+      DEAD_LETTER_DIR: /app/storage/dead-letter
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      METRICS_TOKEN: ${METRICS_TOKEN}
+      DOCS_PRIVATE: 'true'
+      REQUIRE_MFA_IN_PRODUCTION: 'true'
+      ALLOW_BOOT_WITHOUT_MFA: ${ALLOW_BOOT_WITHOUT_MFA:-1}
+      STRICT_PRODUCTION_GUARD: 'true'
+      TRUST_PROXY: 'true'
+      TRUST_PROXY_IPS: 127.0.0.1,::1
+      CLUSTER_MODE: 'true'
+      ENABLE_REDIS_RUNTIME: 'true'
+      ENABLE_REDIS_EVENT_QUEUE: 'true'
+      ENABLE_POSTGRES_STORAGE: 'true'
+      POSTGRES_AUTO_MIGRATE: 'true'
+      POSTGRES_BOOTSTRAP_FROM_JSON: 'true'
+      POSTGRES_URL: postgres://avp:${POSTGRES_PASSWORD}@postgres:5432/avp
+      REDIS_URL: redis://redis:6379
+      REDIS_EVENT_STREAM: avp:events
+      REDIS_STREAM_MAXLEN: 500000
+      POSTGRES_POOL_MAX: 20
+      POSTGRES_EVENT_BATCH_SIZE: 500
+      PERSIST_EVENT_STATS_IN_JSON: 'false'
+      KEEP_IN_MEMORY_EVENT_STATS: 'true'
+      POSTGRES_SYNC_CONFIG_INTERVAL_MS: 10000
+      POSTGRES_SYNC_ANALYTICS_INTERVAL_MS: 15000
+      SDK_CACHE_CONTROL: public, max-age=60, s-maxage=300, stale-while-revalidate=60
+      DEFAULT_HEARTBEAT_INTERVAL_MS: 20000
+      DEFAULT_RERENDER_INTERVAL_MS: 60000
+      MAX_EVENTS_PER_PROJECT_PER_MINUTE: 1800
+      MAX_SESSIONS_PER_PROJECT_PER_MINUTE: 400
+      MAX_EVENTS_PER_VISITOR_PER_MINUTE: 120
+      API_LIMIT_MAX: 1200
+    volumes:
+      - avp_storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    expose:
+      - '3443'
+
+  worker-ingestion:
+    build: ..
+    command: npm run worker:ingestion
+    restart: unless-stopped
+    environment:
+      POSTGRES_URL: postgres://avp:${POSTGRES_PASSWORD}@postgres:5432/avp
+      REDIS_URL: redis://redis:6379
+      REDIS_EVENT_STREAM: avp:events
+      POSTGRES_AUTO_MIGRATE: 'true'
+      POSTGRES_EVENT_BATCH_SIZE: 500
+      WORKER_BATCH_SIZE: 500
+      WORKER_BLOCK_MS: 5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker-analytics:
+    build: ..
+    command: sh -c 'while true; do npm run worker:analytics; sleep 60; done'
+    restart: unless-stopped
+    environment:
+      POSTGRES_URL: postgres://avp:${POSTGRES_PASSWORD}@postgres:5432/avp
+      ANALYTICS_AGGREGATE_DAYS: 90
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker-maintenance:
+    build: ..
+    command: sh -c 'while true; do npm run postgres:maintenance; sleep 86400; done'
+    restart: unless-stopped
+    environment:
+      POSTGRES_URL: postgres://avp:${POSTGRES_PASSWORD}@postgres:5432/avp
+      POSTGRES_EVENT_RETENTION_DAYS: ${POSTGRES_EVENT_RETENTION_DAYS:-180}
+      POSTGRES_MAINTENANCE_DRY_RUN: ${POSTGRES_MAINTENANCE_DRY_RUN:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: avp
+      POSTGRES_USER: avp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U avp -d avp']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --save 60 1000 --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+
+volumes:
+  avp_storage:
+  pg_data:
+  redis_data:
+  nginx_cache:
