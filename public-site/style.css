@@ -1529,3 +1529,10 @@ body::before{
     border-radius:24px;
   }
 }
+
+/* Move mockup URL field to the right on mobile */
+@media(max-width:560px){
+  .mockup-toolbar .url{
+    margin-left:30px !important;
+  }
+}
