@@ -1520,3 +1520,12 @@ body::before{
     margin-right:0!important;
   }
 }
+
+@media(max-width:560px){
+  .cta-band{
+    width:calc(100% - 32px);
+    margin-left:16px;
+    margin-right:16px;
+    border-radius:24px;
+  }
+}
