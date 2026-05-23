@@ -3,11 +3,9 @@ AdProof — beta SaaS frontend
 Files:
 - index.html
 - product.html
-- ai.html
 - security.html
 - pricing.html
 - docs.html
-- blog.html
 - about.html
 - support.html
 - style.css

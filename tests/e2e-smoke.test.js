@@ -212,10 +212,8 @@ async function main() {
     const publicRoutes = [
       ['/', 'marketing home'],
       ['/product.html', 'product page'],
-      ['/ai.html', 'AI page'],
       ['/security.html', 'security page'],
       ['/pricing.html', 'pricing page'],
-      ['/blog.html', 'blog page'],
       ['/about.html', 'about page'],
       ['/support.html', 'support page'],
       ['/site/style.css', 'public CSS asset'],

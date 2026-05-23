@@ -1,3 +1,22 @@
+AdProof v19 — manual two-site test update
+
+Самый наглядный ручной тест теперь здесь:
+  /manual-test
+
+В development-режиме сервер автоматически создаёт два demo-проекта:
+  1) Manual Test Site A — localhost only
+  2) Manual Test Site B — 127.0.0.2 only
+
+Проверочная матрица:
+  Site A + Project A = PASS
+  Site A + Project B = BLOCK
+  Site B + Project B = PASS
+  Site B + Project A = BLOCK
+
+Подробно: README_MANUAL_TWO_SITE_TEST.md
+
+--- legacy README below ---
+
 AdBlock TLS Console Guard v10
 
 ЗАПУСК

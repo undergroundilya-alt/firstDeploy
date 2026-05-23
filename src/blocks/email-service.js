@@ -68,15 +68,15 @@ function createEmailService(deps) {
 
     if (!cfg.SMTP_ENABLED) return email;
     if (!cfg.SMTP_HOST) {
-      updateEmailOutboxStatus(email.id, { status: 'smtp_not_configured', error: 'SMTP_HOST is empty' });
-      structuredLog('warn', 'email_smtp_not_configured', { to: email.to, id: email.id });
-      return email;
+      const updated = updateEmailOutboxStatus(email.id, { status: 'smtp_not_configured', error: 'SMTP_HOST is empty' }) || email;
+      structuredLog('warn', 'email_smtp_not_configured', { to: email.to, id: email.id, smtp: smtpStatus });
+      return Object.assign(email, updated);
     }
     if (!nodemailer) {
-      updateEmailOutboxStatus(email.id, { status: 'smtp_failed_missing_dependency', error: 'nodemailer package is not installed. Run npm install.' });
-      structuredLog('error', 'email_smtp_missing_nodemailer', { to: email.to, id: email.id });
+      const updated = updateEmailOutboxStatus(email.id, { status: 'smtp_failed_missing_dependency', error: 'nodemailer package is not installed. Run npm install.' }) || email;
+      structuredLog('error', 'email_smtp_missing_nodemailer', { to: email.to, id: email.id, smtp: smtpStatus });
       if (cfg.SMTP_FAIL_BLOCKS_AUTH) throw new Error('smtp_missing_nodemailer');
-      return email;
+      return Object.assign(email, updated);
     }
 
     try {

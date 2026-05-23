@@ -1,0 +1,33 @@
+AdProof v22 — requested auth, DB and UI polish
+
+1) PostgreSQL / Render DB connection
+- Added automatic SSL detection for Render external PostgreSQL URLs and sslmode=require URLs.
+- DB-first startup and setup scripts now force POSTGRES_SSL=true for Render external DB URLs.
+- Client auth stays DB-first when AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH=true and returns a clear error instead of silently losing accounts.
+
+2) Registration, login and reset
+- Registration still supports email/password and stores the client account/session/project link.
+- Reset password flow only sends reset links for accounts that exist in the auth database.
+- Registration and reset emails go through SMTP when configured; otherwise they are written to the local email outbox for debugging.
+
+3) Google signup/login
+- Existing account + Google login now attaches the Google provider to the same account.
+- New Google signup now requires a password-confirmation popup with dark background overlay.
+- Password and confirm-password fields show live green validation states for length, letter, number and match.
+- The same account can then be opened via Google or via email/password.
+
+4) Public/auth UI
+- Login and Signup pages now include the public footer.
+- AI and Blog were removed from public navigation and public serving whitelist.
+- Footer links were cleaned up and pointed to real pages/routes.
+- Legal hero blocks on Terms/Privacy are left-aligned, content-width limited, with reduced bottom spacing and 130% lead line-height.
+- Auth form field/check margins were reset to remove excess vertical gaps.
+
+5) Account/profile UI
+- Client account summary now shows only the client name and “Trial N days left”.
+- Beta label changed to Trial in client-facing plan labels.
+- Profile hover menu now has a hover bridge, so it stays open while moving the cursor from Profile to the dropdown.
+
+6) Hero mockup polish
+- Removed the red/yellow/green browser-dot look from the home mockup.
+- Reworked the debug/status panel styling so it looks more custom and less template-like.

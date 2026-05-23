@@ -1,0 +1,9 @@
+V36 MFA click handler fix
+
+- Rebuilt the client MFA setup JavaScript into a dedicated clientMfaProfileScript() helper.
+- Generate TOTP secret / Generate new setup key now has both delegated click handling and an inline fallback onclick handler.
+- The button no longer depends on form submit behavior.
+- Added console.debug markers: [adproof-mfa] script ready / generate click / setup key generated.
+- If CSRF is missing or fetch fails, the page shows a visible inline error instead of doing nothing.
+- The setup key still appears only in a temporary copy modal and is not left visible on the page.
+- MFA code input is filtered through a delegated input listener, not inline oninput markup.

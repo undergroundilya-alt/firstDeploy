@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html class="auth-preload" lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -7,7 +7,8 @@
   <title>AdProof — Security</title>
   <meta name="description" content="Security center, public keys, secret keys, server verification, audit logs, and kill switch.">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="style.css">
+  <style id="adproof-auth-critical">html.auth-preload body > :not(.page-loader){display:none!important;}html.auth-preload body > .page-loader{display:grid!important;visibility:visible!important;opacity:1!important;}</style><script>try{console.log('[adproof-header] head-critical-active',{t:(performance&&performance.now)?performance.now().toFixed(1)+'ms':'n/a',path:location.pathname,htmlClass:document.documentElement.className});}catch(e){}</script>
+  <link rel="stylesheet" href="style.css"><noscript><style>html.auth-preload body > *{display:revert!important;visibility:visible!important;opacity:1!important}</style></noscript>
 </head>
 <body>
 <header class="site-header topbar">
@@ -20,8 +21,7 @@
       <span></span><span></span><span></span>
     </button>
     <nav class="nav" data-nav aria-label="Main navigation">
-      <a href="index.html" class="">Home</a><a href="product.html" class="">Product</a><a href="ai.html" class="">AI</a><a href="security.html" class="active">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="">Docs</a><a href="blog.html" class="">Blog</a><a href="/login" class="">Login</a>
-      <a class="nav-cta" href="/register">Get access</a>
+      <a href="index.html" class="">Home</a><a href="product.html" class="">Product</a><a href="security.html" class="active">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="">Docs</a><span class="public-auth-slot" data-public-auth><a href="/login">Login</a><a class="nav-cta" href="/register">Get access</a></span>
     </nav>
   </div>
 </header>
@@ -59,15 +59,15 @@ Authorization: Bearer sk_live_xxx
 <footer class="site-footer">
   <div class="container">
     <div class="footer-grid">
-      <div class="footer-section"><h4>Product</h4><a href="product.html">Product</a><a href="ai.html">AI</a><a href="security.html">Security</a><a href="pricing.html">Pricing</a></div>
-      <div class="footer-section"><h4>Use cases</h4><a href="product.html">Publishers</a><a href="security.html">Premium content</a><a href="ai.html">Visibility insights</a><a href="/login">Client portal</a></div>
-      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Docs</a><a href="blog.html">Blog</a><a href="/login">Login</a><a href="#">System status</a></div>
-      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="support.html">Support</a><a href="/register">Get access</a><a href="privacy.html">Privacy</a></div>
-    <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
+      <div class="footer-section"><h4>Product</h4><a href="product.html">Overview</a><a href="pricing.html">Pricing</a><a href="security.html">Security</a><span class="footer-disabled" aria-disabled="true">Documentation</span></div>
+      <div class="footer-section"><h4>Use cases</h4><span class="footer-disabled" aria-disabled="true">Publisher sites</span><span class="footer-disabled" aria-disabled="true">Protected content</span><span class="footer-disabled" aria-disabled="true">Visibility analytics</span><span class="footer-disabled" aria-disabled="true">Client portal</span></div>
+      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Integration docs</a><a href="/login">Client portal</a><a href="support.html">Support</a><span class="footer-disabled footer-status" aria-disabled="true">System Status</span></div>
+      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a><a href="/register">Get access</a></div>
+      <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
     </div>
     <div class="footer-bottom">
       <span>© 2026 AdProof</span>
-      <span class="footer-terms"><a href="terms.html">Terms of Use</a><span class="legal-dot" aria-hidden="true">•</span><a href="privacy.html">Privacy Policy</a></span>
+      <span class="footer-legal-bottom"><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></span>
     </div>
   </div>
 </footer>

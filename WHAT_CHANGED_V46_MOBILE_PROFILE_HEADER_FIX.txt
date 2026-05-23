@@ -1,0 +1,7 @@
+AdProof v46 mobile Profile/header fix
+
+- Mobile public header auth area is forced into a vertical flow: Profile first, Dashboard below it.
+- Profile and Dashboard now use the same left alignment and 12px mobile padding as normal header links.
+- Profile dropdown opens from the visible right side of the mobile menu instead of being positioned to the left edge/off-screen.
+- Mobile header/account/profile pages now clamp horizontal overflow to prevent Home / Docs header scrolling on phones.
+- The fix is appended as final CSS overrides at the end of public-site/style.css to override older accumulated mobile rules.

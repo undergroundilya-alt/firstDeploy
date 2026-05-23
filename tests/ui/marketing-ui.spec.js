@@ -23,7 +23,6 @@ test.describe('Marketing UI', () => {
     });
 
     const pages = [
-      ['/ai.html', /AI summaries for visibility events/i, 'AI page'],
       ['/security.html', /Secure beta logic/i, 'Security page'],
       ['/pricing.html', /Simple beta pricing/i, 'Pricing page']
     ];
@@ -91,12 +90,5 @@ test.describe('Marketing UI', () => {
       uiLog('Pricing toggle updated first plan price to yearly amount', '$39');
     });
 
-    await uiStep('Filter blog cards by technical category', async () => {
-      await page.goto('/blog.html');
-      await page.locator('[data-filter="technical"]').click();
-      await expect(page.locator('[data-category="technical"]').first()).toBeVisible();
-      await expect(page.locator('[data-category="growth"]').first()).toHaveClass(/is-hidden/);
-      uiLog('Technical posts remain visible and growth posts receive is-hidden class');
-    });
   });
 });

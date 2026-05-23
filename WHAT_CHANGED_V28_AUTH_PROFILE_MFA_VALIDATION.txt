@@ -1,0 +1,17 @@
+V28 changes
+
+- Removed the "English letters only" password rule from registration, Google password setup, and reset password forms.
+- Password letter validation now accepts Unicode letters, including Ukrainian/Russian/other alphabets, and still requires 8-20 characters plus at least one number.
+- Reworked email inputs to type=email with email autocomplete, trim-based validation, and removed the "Use a valid email address with @" helper text.
+- Added stronger length/XSS-like input validation to auth/profile forms.
+- Restored Terms of Use / Privacy Policy links to the footer bottom while keeping them in the Company column.
+- Reduced spacing between registration checkboxes.
+- Changed the post-registration popover to a small "Login successful" message that fades like the login toast.
+- Changed trial label format to "Trial: 30 days left".
+- Added detailed registration/email-change/password-reset email processing logs with SMTP status and local outbox location.
+- Added /account/profile page for personal details stored in DB.
+- Added email change flow with confirmation link; pending change is cancelled on logout.
+- Added client MFA setup with TOTP secret generation and code confirmation.
+- Updated Profile dropdown to show Dashboard, Personal details, Security / MFA, and Logout.
+- Reworked first project onboarding into a darker first setup tutorial panel with direct actions.
+- Added extra desktop top spacing to the Access monitor floating note while keeping mobile adaptive behavior.

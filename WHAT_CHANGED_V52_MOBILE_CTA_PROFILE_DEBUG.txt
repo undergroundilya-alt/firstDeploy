@@ -1,0 +1,14 @@
+AdProof v52 — mobile CTA alignment + Profile mobile debug
+
+Changes:
+- Mobile Get access / Dashboard CTA buttons now use font-weight: 600.
+- CTA button text starts on the same left text line as Home/Profile by using margin-left: 0 and padding-left: 12px.
+- Profile mobile pop-up handling no longer toggles on touchstart + pointerdown + click together.
+- Pointer/touch/click handling now logs detailed events with prefix [adproof-profile-mobile].
+- Added placement/open/close logs so phone behavior can be diagnosed from DevTools remote console.
+
+How to debug on phone:
+1. Open mobile menu.
+2. Tap Profile.
+3. In console filter: adproof-profile-mobile
+4. Send the full log order if the menu does not open.

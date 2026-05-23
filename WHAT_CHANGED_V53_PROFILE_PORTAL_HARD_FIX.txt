@@ -1,0 +1,15 @@
+V53 profile popover hard fix
+
+- Rebuilt the Profile popup flow so it no longer depends on CSS visibility of the original header menu.
+- The original .nav-profile-menu is kept hidden and out of layout.
+- A separate body-level portal .adproof-profile-floating-portal is created and positioned with fixed coordinates.
+- The portal receives inline important styles for display, z-index, position, size, background, padding and link layout.
+- The popup should no longer stretch the header, be clipped by the mobile header, or be hidden behind the mobile menu.
+- Added stronger debug logs: place-portal, open-portal, close-portal, trigger-click, trigger-pointerdown.
+- Mobile CTA alignment from v52 is preserved: Get access / Dashboard use font-weight 600 and align with Home/Profile.
+
+How to verify:
+1. Open mobile menu at 360px.
+2. Tap Profile.
+3. Console should show [adproof-profile-mobile] place-portal and open-portal.
+4. The popup should be visible as a floating white panel over the page/menu.

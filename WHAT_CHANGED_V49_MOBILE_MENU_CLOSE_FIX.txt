@@ -1,0 +1,14 @@
+AdProof v49 — mobile burger close flash fix
+
+Changes:
+- Mobile burger menu is now full width (100%) inside the header container.
+- Closed/mobile-closing state uses immediate display:none/visibility:hidden so header links cannot flash on the right edge during close.
+- Added body.menu-closing handling in public-site/app.js.
+- Profile dropdown stays outside header layout: hidden by default unless the portal menu is explicitly open.
+- Account/admin profile dropdown also uses fixed portal CSS and should not expand header height.
+
+Validation:
+- node --check public-site/app.js
+- node --check server.js
+- node --check src/blocks/client-portal-block.js
+- npm test

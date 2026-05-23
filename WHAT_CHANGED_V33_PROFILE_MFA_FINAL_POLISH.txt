@@ -1,0 +1,9 @@
+AdProof v33 profile/MFA polish
+
+- Removed the remaining Connect SDK action from the first setup tutorial flow.
+- Kept Dashboard as the client account page title.
+- Centered the MFA login modal using a fixed flex overlay.
+- Changed MFA code inputs to text + numeric inputmode so leading zeroes can be entered and preserved.
+- Extended temporary MFA login challenge TTL to 30 minutes by default.
+- Added no-refresh Generate TOTP secret flow on the profile page with a small loader.
+- Strengthened profile dropdown hover bridge so the popover remains visible while moving the mouse from Profile to the menu.

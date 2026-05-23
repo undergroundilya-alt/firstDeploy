@@ -1,0 +1,5 @@
+V44 fixes:
+- Mobile public auth/Profile/Dashboard are inline, left-aligned with the header menu links.
+- Mobile Profile dropdown opens from the top-right of the Profile trigger.
+- dark-band cta-band now has 16px padding and 16px vertical margin.
+- Mockup debug rows are restored as visible text; only the outer pane clips overflow.

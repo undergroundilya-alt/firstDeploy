@@ -1,0 +1,8 @@
+AdProof v35 — MFA setup no-reload fix
+
+- Reworked client MFA setup key generation so it no longer uses a submit form.
+- Generate TOTP secret / Generate new setup key now use a type="button" button and fetch POST.
+- Kept a submit listener fallback only for older generated markup, but the visible UI no longer has a submit path.
+- Added loading state, no page reload, and a pop-up with the setup key after every successful generation.
+- The setup key is not rendered into the page after the pop-up is closed.
+- CSRF is sent via URLSearchParams in the fetch body for stable server-side parsing.

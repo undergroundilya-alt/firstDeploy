@@ -1,0 +1,14 @@
+AdProof v37 — public auth header anti-flicker fix
+
+Changes:
+- Replaced the initially visible public Login/Get access pair with a reserved hidden auth slot.
+- Added smooth auth-slot reveal after /api/client/session returns.
+- Preserved layout width to prevent Login/Profile/Dashboard jumping.
+- Updated public static pages and server-rendered public header.
+- Added CSS for .public-auth-slot, .auth-loading and .auth-ready.
+- Kept Dashboard/Profile rendering for authenticated users and Login/Get access for guests.
+
+Validation:
+- node --check public-site/app.js
+- node --check server.js
+- npm test

@@ -1,0 +1,9 @@
+AdProof v38 — public header auth/render polish
+
+- Restored the public header to render the normal guest state first: Login / Get access are in the initial HTML again.
+- Kept the page loader visible until the client session check is finished, so authenticated users should not see the Login/Get access -> Profile/Dashboard swap.
+- Changed authenticated public header order to: Profile, then Dashboard.
+- On the home page, Profile dropdown does not include Dashboard because Dashboard already exists as a separate header button.
+- Reduced the public auth slot spacing so Profile sits close to Docs like the other nav items.
+- Added inline line-height: 130% to the requested home page paragraphs/small text.
+- Verified with node --check and npm test.

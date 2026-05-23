@@ -1,10 +1,11 @@
 services:
   - type: web
-    name: adproof-single-service
+    name: adproof-db-first
     env: node
     plan: free
-    buildCommand: npm ci --omit=dev
+    buildCommand: npm ci --omit=dev && npm run db:setup
     startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
@@ -16,40 +17,33 @@ services:
         value: true
       - key: PUBLIC_BASE_URL
         sync: false
-
-      # Single-service JSON storage. This is a temporary beta shortcut.
-      # Without a Render persistent disk, files may be reset after redeploy/restart.
-      - key: STORAGE_ROOT
-        value: /opt/render/project/src/storage
-      - key: DATA_FILE
-        value: /opt/render/project/src/storage/saas-state.json
-      - key: AUTH_DB_FILE
-        value: /opt/render/project/src/storage/auth-accounts.json
-      - key: RUNTIME_FILE
-        value: /opt/render/project/src/storage/runtime-sessions.json
-      - key: LEADS_FILE
-        value: /opt/render/project/src/storage/leads.json
-      - key: EMAIL_OUTBOX_FILE
-        value: /opt/render/project/src/storage/email-outbox.json
-      - key: BACKUP_DIR
-        value: /opt/render/project/src/storage/backups
-      - key: EVENT_LOG_DIR
-        value: /opt/render/project/src/storage/events
-      - key: AUDIT_LOG_DIR
-        value: /opt/render/project/src/storage/audit
-      - key: ALERT_LOG_DIR
-        value: /opt/render/project/src/storage/alerts
-      - key: DEAD_LETTER_DIR
-        value: /opt/render/project/src/storage/dead-letter
-      - key: CORRUPTED_DIR
-        value: /opt/render/project/src/storage/corrupted
-
-      # Disable separate database services for the 30-day Render trial.
+      - key: DATABASE_URL
+        sync: false
+      - key: POSTGRES_SSL
+        value: true
       - key: ENABLE_APP_DB
-        value: false
+        value: true
       - key: ENABLE_POSTGRES_STORAGE
-        value: false
+        value: true
       - key: AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH
+        value: true
+      - key: POSTGRES_AUTO_MIGRATE
+        value: true
+      - key: POSTGRES_BOOTSTRAP_FROM_JSON
+        value: true
+      - key: POSTGRES_DIRECT_EVENT_WRITE
+        value: true
+      - key: POSTGRES_SYNC_CONFIG
+        value: true
+      - key: POSTGRES_SYNC_ANALYTICS
+        value: true
+      - key: PERSIST_EVENT_STATS_IN_JSON
+        value: false
+      - key: LOCAL_EVENT_LOG_ENABLED
+        value: false
+      - key: LOCAL_STATE_WRITE_ENABLED
+        value: false
+      - key: LOCAL_RUNTIME_WRITE_ENABLED
         value: false
       - key: CLUSTER_MODE
         value: false
@@ -57,8 +51,6 @@ services:
         value: false
       - key: ENABLE_REDIS_EVENT_QUEUE
         value: false
-
-      # Beta-friendly production startup. Keep strict guard off for this one-service trial.
       - key: STRICT_PRODUCTION_GUARD
         value: false
       - key: REQUIRE_MFA_IN_PRODUCTION
@@ -70,9 +62,7 @@ services:
       - key: SMTP_ENABLED
         value: false
       - key: AUTH_DEBUG_LOGS
-        value: true
-
-      # Set these in Render dashboard. Generated values are OK for the beta service.
+        value: false
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD

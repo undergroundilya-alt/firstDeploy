@@ -1,0 +1,11 @@
+AdProof v34 — MFA smooth setup/final fixes
+
+- MFA setup key generation is now AJAX-based and does not reload the profile page.
+- Generated MFA setup key is shown only once in a temporary copy modal.
+- After the modal closes, the secret key is no longer displayed on the page.
+- If the setup key was not copied, the user can generate a new setup key.
+- MFA disable now requires the current account password.
+- Direct query links like /account/profile?mfa=disabled no longer show a fake MFA status message.
+- The MFA instruction paragraph is limited to about two-thirds of the security block width on desktop.
+- Profile dropdown keeps Dashboard on inner pages, but hides Dashboard on the public homepage where the Dashboard CTA already exists.
+- Tests passed with npm test.

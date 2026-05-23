@@ -1,0 +1,13 @@
+AdProof v42 — MFA disable inline validation
+
+Changes:
+- Disable MFA password check is now handled inside the pop-up via fetch/AJAX.
+- Wrong password is shown directly under the Confirm password field as field validation.
+- Invalid password no longer redirects/reloads to the profile page with a generic message.
+- Disable MFA success closes the pop-up and updates the Security / MFA block in-place.
+- Added line-height: 130% to the active MFA note.
+- Kept server fallback for normal POST requests.
+
+Tests:
+- node --check server.js
+- npm test

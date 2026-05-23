@@ -1,0 +1,8 @@
+V29 MFA and footer polish
+
+- Removed always-visible TOTP MFA field from client/admin login forms.
+- MFA code now appears only as a modal challenge after password login when MFA is enabled.
+- Added short-lived in-memory MFA challenge cookies for client/admin login.
+- Restored footer legal bottom with a dot separator between Terms of Use and Privacy Policy.
+- Raised footer divider line by restoring footer-bottom padding.
+- Reduced spacing between registration checkboxes.

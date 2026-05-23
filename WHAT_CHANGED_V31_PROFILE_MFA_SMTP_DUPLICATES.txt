@@ -1,0 +1,13 @@
+V31 fixes:
+- Client Profile dropdown now contains Dashboard, Personal details and Logout for logged-in client users.
+- Profile dropdown hover area was expanded so the menu does not disappear while moving the cursor into it.
+- Logged-in client users are redirected from /login and /register to /account.
+- /login/mfa is now routed through the client portal handler, fixing the 404 after MFA verification.
+- Client MFA login modal remains vertically centered.
+- Client MFA setup no longer displays the raw otpauth URL; it shows a manual setup key and a 6-digit authenticator code field.
+- Project cards no longer show a separate Trial badge next to Active.
+- Account header no longer shows the user's name in the summary chip; it keeps Trial: N days left.
+- Duplicate client emails and phone numbers are blocked during registration and profile updates with user-facing messages.
+- SMTP startup diagnostics now print enabled/configured/host/user/pass/nodemailer state.
+- Email service now returns smtp_not_configured / missing dependency status instead of leaving returned status as pending_smtp.
+- Create first project buttons in onboarding were normalized to match neighbouring button size.

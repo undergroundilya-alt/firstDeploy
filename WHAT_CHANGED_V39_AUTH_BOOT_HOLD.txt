@@ -1,0 +1,7 @@
+V39 changes:
+- Public pages now start with html.auth-preload, so content is hidden before first paint.
+- app.js no longer releases the page on a fixed 900ms timeout; it waits for the auth navigation check to finish.
+- The page loader is visible while auth is checked, preventing Login/Get access from flashing before Profile/Dashboard.
+- Session fetch has a 3.5s abort fallback; if auth cannot be checked, the header safely renders guest Login/Get access.
+- Profile remains before Dashboard for authenticated public header.
+- Existing v38 line-height changes are preserved.

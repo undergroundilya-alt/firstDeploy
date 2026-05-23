@@ -1,0 +1,14 @@
+AdProof v25 — footer status placement and DB inspection helper
+
+Changed:
+- Removed "Manual test site" from every public/auth footer.
+- Moved "System Status" to the footer bottom line next to copyright.
+- Kept duplicate footer items disabled where requested.
+- Added npm script: npm run db:inspect
+- Added scripts/db-inspect.js to show current PostgreSQL connection, avp_* tables, counts, latest client accounts and latest projects without printing password hashes.
+
+DB tables to check:
+- avp_client_accounts: client portal users registered via email/password or Google.
+- avp_projects: SaaS projects.
+- avp_client_project_links: relation between client accounts and projects.
+- avp_users: internal/admin users.

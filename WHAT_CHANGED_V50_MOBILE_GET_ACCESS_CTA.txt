@@ -1,0 +1,6 @@
+V50 mobile Get access CTA polish
+
+- Kept the Get access item as a CTA button on mobile instead of letting it inherit plain mobile nav-link styling.
+- Scoped the override to .nav-cta[href="/register"] so it does not affect Dashboard or other header links.
+- Added mobile hover/focus colors to match the desktop CTA behavior.
+- No other UI blocks were intentionally changed.

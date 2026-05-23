@@ -4,11 +4,11 @@
   "description": "Cluster-ready commercial beta SaaS platform for ad visibility verification with server-gate, WebCrypto/canvas proof, signed batch events, mandatory Redis runtime in cluster mode, Redis event stream, PostgreSQL durable storage, batch ingestion workers, CDN/reverse-proxy deployment scaffolding and high-load test tooling",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node scripts/start-db-mode.js",
     "dev": "node server.js",
     "certs": "node ensure-certs.js",
     "reset-demo": "node scripts/reset-demo-data.js",
-    "check": "node --check server.js && node --check gate.js && node --check tls-fingerprint-proxy.js && node --check ensure-certs.js && node --check start.js && node --check start-tls-gated.js && node --check scripts/restore-check.js && node --check scripts/restore-drill.js && node --check scripts/load-test.js && node --check scripts/export-events.js && node --check scripts/compact-events.js && node --check scripts/import-events-to-postgres.js && node --check scripts/external-backup.js && node --check scripts/worker-ingestion.js && node --check scripts/analytics-aggregate.js && node --check scripts/db-migrate.js && node --check scripts/bootstrap-postgres-from-json.js && node --check src/adapters/postgres-adapter.js && node --check src/adapters/redis-queue-adapter.js && node --check src/runtime/scalable-runtime.js && node --check scripts/postgres-maintenance.js && node --check scripts/load-test-cluster-model.js && node --check scripts/seed-postgres-analytics.js && node --check scripts/seed-staging-analytics.js && node --check scripts/mock-postgres-project.js && node --check scripts/print-security-checks.js && node --check tests/security-scenarios-coverage.test.js && node --check tests/ui/test-site-sdk.spec.js && node --check playwright.config.cjs && node --check src/blocks/email-service.js && node --check src/blocks/client-portal-block.js && node --check src/blocks/site-block.js && node --check scripts/ci-local.js && node --check scripts/install-git-hooks.js && node --check scripts/assert-no-secrets.js && node --check tests/ci-cd-contract.test.js && node --check tests/ui/responsive-layout.spec.js && node --check scripts/architecture-audit.js",
+    "check": "node --check server.js && node --check gate.js && node --check tls-fingerprint-proxy.js && node --check ensure-certs.js && node --check start.js && node --check start-tls-gated.js && node --check scripts/restore-check.js && node --check scripts/restore-drill.js && node --check scripts/load-test.js && node --check scripts/export-events.js && node --check scripts/compact-events.js && node --check scripts/import-events-to-postgres.js && node --check scripts/external-backup.js && node --check scripts/worker-ingestion.js && node --check scripts/analytics-aggregate.js && node --check scripts/db-migrate.js && node --check scripts/setup-postgres-db.js && node --check scripts/start-db-mode.js && node --check scripts/bootstrap-postgres-from-json.js && node --check src/adapters/postgres-adapter.js && node --check src/adapters/redis-queue-adapter.js && node --check src/runtime/scalable-runtime.js && node --check scripts/postgres-maintenance.js && node --check scripts/load-test-cluster-model.js && node --check scripts/seed-postgres-analytics.js && node --check scripts/seed-staging-analytics.js && node --check scripts/mock-postgres-project.js && node --check scripts/print-security-checks.js && node --check tests/security-scenarios-coverage.test.js && node --check tests/ui/test-site-sdk.spec.js && node --check playwright.config.cjs && node --check src/blocks/email-service.js && node --check src/blocks/client-portal-block.js && node --check src/blocks/site-block.js && node --check scripts/ci-local.js && node --check scripts/install-git-hooks.js && node --check scripts/assert-no-secrets.js && node --check tests/ci-cd-contract.test.js && node --check tests/ui/responsive-layout.spec.js && node --check scripts/architecture-audit.js",
     "legacy": "node legacy-v10-original/start.js",
     "legacy-backend": "node legacy-v10-original/server.js",
     "legacy-tls-gate": "node legacy-v10-original/tls-fingerprint-proxy.js",
@@ -46,7 +46,11 @@
     "ci:local": "node scripts/ci-local.js",
     "ci:full": "npm run ci:local && npm run test:ui",
     "setup:hooks": "node scripts/install-git-hooks.js",
-    "architecture:audit": "node scripts/architecture-audit.js"
+    "architecture:audit": "node scripts/architecture-audit.js",
+    "start:json": "node server.js",
+    "start:db": "node scripts/start-db-mode.js",
+    "db:setup": "node scripts/setup-postgres-db.js",
+    "db:inspect": "node scripts/db-inspect.js"
   },
   "keywords": [
     "ad-visibility",

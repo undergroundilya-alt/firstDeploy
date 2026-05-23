@@ -78,14 +78,30 @@ const SMTP_REQUIRE_TLS = String(process.env.SMTP_REQUIRE_TLS || 'true').toLowerC
 const SMTP_TIMEOUT_MS = Number(process.env.SMTP_TIMEOUT_MS || 15000);
 const SMTP_ENABLED = String(process.env.SMTP_ENABLED || (SMTP_HOST ? 'true' : 'false')).toLowerCase() === 'true';
 const SMTP_FAIL_BLOCKS_AUTH = String(process.env.SMTP_FAIL_BLOCKS_AUTH || 'false').toLowerCase() === 'true';
+if (SMTP_ENABLED && !SMTP_HOST) {
+  console.warn('[mail] SMTP_ENABLED=true, but SMTP_HOST is empty. Registration/reset emails cannot be sent. Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.');
+}
 const AUTH_DEBUG_LOGS = String(process.env.AUTH_DEBUG_LOGS || (APP_ENV === 'development' ? 'true' : 'false')).toLowerCase() === 'true';
 const CLIENT_COOKIE = 'avp_client';
+const CLIENT_MFA_COOKIE = 'avp_client_mfa';
+const ADMIN_MFA_COOKIE = 'avp_admin_mfa';
+const CLIENT_MFA_CHALLENGE_TTL = Number(process.env.CLIENT_MFA_CHALLENGE_TTL_MS || 30 * 60 * 1000);
+const pendingClientMfaSessions = new Map();
+const pendingAdminMfaSessions = new Map();
 const CLIENT_SESSION_TTL = Number(process.env.CLIENT_SESSION_TTL_MS || 60 * 60 * 1000);
 const APP_DB_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
+function postgresSslEnabledFor(url = '') {
+  const raw = String(process.env.POSTGRES_SSL || process.env.DATABASE_SSL || '').trim().toLowerCase();
+  if (['disable','disabled','off','no_ssl','none'].includes(raw)) return false;
+  if (['true','1','yes','require','required'].includes(raw)) return true;
+  // Render external PostgreSQL URLs require SSL. Keep this automatic so auth does not silently fall back.
+  if (/render\.com/i.test(String(url || '')) || /sslmode=require/i.test(String(url || ''))) return true;
+  return false;
+}
 const APP_DB_ENABLED = String(process.env.ENABLE_APP_DB || process.env.ENABLE_POSTGRES_STORAGE || (APP_DB_URL ? 'true' : 'false')).toLowerCase() === 'true';
 const APP_DB_CONFIGURED = Boolean(APP_DB_URL);
 const AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH = String(process.env.AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH || process.env.AUTH_REQUIRE_APP_DB || (APP_ENV === 'production' && APP_DB_ENABLED ? 'true' : 'false')).toLowerCase() === 'true';
-const APP_DB_SSL = String(process.env.POSTGRES_SSL || process.env.DATABASE_SSL || '').toLowerCase() === 'true';
+const APP_DB_SSL = postgresSslEnabledFor(APP_DB_URL);
 const AUDIT_LOG_DIR = path.resolve(__dirname, process.env.AUDIT_LOG_DIR || path.join(STORAGE_ROOT, 'audit'));
 const ALERT_LOG_DIR = path.resolve(__dirname, process.env.ALERT_LOG_DIR || path.join(STORAGE_ROOT, 'alerts'));
 const DEAD_LETTER_DIR = path.resolve(__dirname, process.env.DEAD_LETTER_DIR || path.join(STORAGE_ROOT, 'dead-letter'));
@@ -108,7 +124,7 @@ const REQUIRE_MFA_IN_PRODUCTION = String(process.env.REQUIRE_MFA_IN_PRODUCTION |
 const DEFAULT_SDK_VERSION = process.env.DEFAULT_SDK_VERSION || 'v1';
 const DEFAULT_SDK_CHANNEL = process.env.DEFAULT_SDK_CHANNEL || 'stable';
 const PUBLIC_SITE_ROOT = path.join(__dirname, 'public-site');
-const MARKETING_FRONTEND_FILES = new Set(['index.html','product.html','ai.html','security.html','pricing.html','docs.html','blog.html','about.html','support.html','terms.html','privacy.html','admin.html','style.css','app.js','icon.png']);
+const MARKETING_FRONTEND_FILES = new Set(['index.html','product.html','security.html','pricing.html','docs.html','about.html','support.html','terms.html','privacy.html','admin.html','style.css','app.js','icon.png']);
 const CANARY_PERCENT = Math.max(0, Math.min(100, Number(process.env.CANARY_PERCENT || 0)));
 const GLOBAL_KILL_SWITCH = String(process.env.GLOBAL_KILL_SWITCH || 'false').toLowerCase() === 'true';
 const MAX_EVENTS_PER_PROJECT_PER_MINUTE = Number(process.env.MAX_EVENTS_PER_PROJECT_PER_MINUTE || 600);
@@ -122,6 +138,7 @@ const GOOGLE_CLIENT_SECRET = normalizeConfiguredSecret(process.env.GOOGLE_CLIENT
 const GOOGLE_OAUTH_REDIRECT_PATH = '/auth/google/callback';
 const OAUTH_STATE_TTL = Number(process.env.OAUTH_STATE_TTL_MS || 10 * 60 * 1000);
 const oauthStates = new Map();
+const googleSignupTokens = new Map();
 
 const ADMIN_COOKIE = 'avp_admin';
 const ADMIN_SESSION_TTL = 12 * 60 * 60 * 1000;
@@ -147,6 +164,10 @@ const POSTGRES_DASHBOARD_DAYS = Number(process.env.POSTGRES_DASHBOARD_DAYS || 30
 const POSTGRES_DASHBOARD_RECENT_LIMIT = Number(process.env.POSTGRES_DASHBOARD_RECENT_LIMIT || 100);
 const PERSIST_EVENT_STATS_IN_JSON = String(process.env.PERSIST_EVENT_STATS_IN_JSON || (CLUSTER_MODE ? 'false' : 'true')).toLowerCase() === 'true';
 const KEEP_IN_MEMORY_EVENT_STATS = String(process.env.KEEP_IN_MEMORY_EVENT_STATS || 'true').toLowerCase() !== 'false';
+// DB-first mode: when events are written directly to PostgreSQL, local NDJSON event files can be disabled.
+const LOCAL_EVENT_LOG_ENABLED = String(process.env.LOCAL_EVENT_LOG_ENABLED || (APP_DB_URL && String(process.env.POSTGRES_DIRECT_EVENT_WRITE || 'true').toLowerCase() !== 'false' ? 'false' : 'true')).toLowerCase() === 'true';
+const LOCAL_STATE_WRITE_ENABLED = String(process.env.LOCAL_STATE_WRITE_ENABLED || (APP_DB_URL && String(process.env.ENABLE_POSTGRES_STORAGE || '').toLowerCase() === 'true' ? 'false' : 'true')).toLowerCase() === 'true';
+const LOCAL_RUNTIME_WRITE_ENABLED = String(process.env.LOCAL_RUNTIME_WRITE_ENABLED || (APP_DB_URL && String(process.env.ENABLE_POSTGRES_STORAGE || '').toLowerCase() === 'true' ? 'false' : 'true')).toLowerCase() === 'true';
 const SDK_CACHE_CONTROL = process.env.SDK_CACHE_CONTROL || (APP_ENV === 'production' ? 'public, max-age=60, s-maxage=300, stale-while-revalidate=60' : 'no-store');
 const loginAttempts = new Map();
 const apiHits = new Map();
@@ -470,6 +491,7 @@ function appDbPublicStatus() {
     requiredForClientAuth: AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH,
     urlSource: process.env.DATABASE_URL ? 'DATABASE_URL' : (process.env.POSTGRES_URL ? 'POSTGRES_URL' : ''),
     ssl: APP_DB_SSL,
+    sslMode: APP_DB_SSL ? 'enabled' : 'disabled',
     storage: (APP_DB_ENABLED && APP_DB_CONFIGURED && appDbReady) ? 'postgres' : 'json_fallback',
     reason: !APP_DB_ENABLED ? 'ENABLE_APP_DB/ENABLE_POSTGRES_STORAGE/DATABASE_URL is not enabled' : (!APP_DB_CONFIGURED ? 'DATABASE_URL or POSTGRES_URL is missing' : (!appDbReady ? 'Postgres connection has not been established yet' : 'connected'))
   };
@@ -492,12 +514,22 @@ async function sendAppEmail(to, subject, body, meta = {}) { return emailService.
 function emailLooksValid(email) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizeEmail(email)); }
 
 function hasHtmlLikeInput(value) { return /<|>|javascript:|on\w+\s*=/i.test(String(value || '')); }
-function cleanClientText(value, max = 255) { return clamp(value, max); }
+function hasCyrillicInput(value) { return /[\u0400-\u04FF]/.test(String(value || '')); }
+function hasUnicodeLetter(value) { return /\p{L}/u.test(String(value || '')); }
+function passwordPolicyOk(value) {
+  const v = String(value || '');
+  return v.length >= 8 && v.length <= 20 && hasUnicodeLetter(v) && /\d/.test(v) && !hasHtmlLikeInput(v);
+}
+function passwordPolicyMessage(emptyLabel = 'Password is required.') {
+  return 'Password must be 8–20 characters and include at least one letter and one number.';
+}
+function cleanClientText(value, max = 255) { return clamp(String(value || '').trim(), max); }
+function safeEmailInput(value) { return normalizeEmail(cleanClientText(value || '', 255)); }
 function normalizePhone(value) { return String(value || '').replace(/\D+/g, '').slice(0, 20); }
 function validateClientRegistrationFields(input) {
   const fullName = cleanClientText(input.fullName || input.name || '', 255);
   const companyName = cleanClientText(input.companyName || input.company || '', 255);
-  const email = cleanClientText(input.email || '', 255).toLowerCase();
+  const email = safeEmailInput(input.email || '');
   const countryCodeRaw = cleanClientText(input.countryCode || '+380', 8);
   const countryCode = /^\+\d{1,4}$/.test(countryCodeRaw) ? countryCodeRaw : '';
   const rawLocalPhone = cleanClientText(input.phone || input.phoneNumber || '', 32).trim();
@@ -516,9 +548,9 @@ function validateClientRegistrationFields(input) {
   else if (/\D/.test(localPhone)) errors.push('Phone number must contain digits only.');
   else if (!/^\d{4,15}$/.test(localPhone)) errors.push('Phone number must contain 4–15 digits after the country code.');
   if (!email) errors.push('Email is required.');
-  else if (email.length < 5 || email.length > 255 || hasHtmlLikeInput(email) || !emailLooksValid(email)) errors.push('Enter a valid email address with @.');
+  else if (email.length < 5 || email.length > 255 || hasHtmlLikeInput(email) || !emailLooksValid(email)) errors.push('Please enter a valid email address.');
   if (!password) errors.push('Password is required.');
-  else if (password.length < 8 || password.length > 20 || !/[A-Za-z]/.test(password) || !/\d/.test(password) || hasHtmlLikeInput(password)) errors.push('Password must be 8–20 characters and include at least one letter and one number.');
+  else if (!passwordPolicyOk(password)) errors.push(passwordPolicyMessage('New password is required.'));
   if (password !== confirmPassword) errors.push('Passwords do not match.');
   if (!termsAccepted) errors.push('You must accept the Terms of Use.');
   return { ok: errors.length === 0, errors, fullName, companyName, email, countryCode, localPhone, phone, password, confirmPassword, termsAccepted };
@@ -673,7 +705,14 @@ async function ensureAppDbReady() {
       ALTER TABLE avp_client_accounts ADD COLUMN IF NOT EXISTS plan_id text NOT NULL DEFAULT 'beta';
       ALTER TABLE avp_client_accounts ADD COLUMN IF NOT EXISTS marketing_consent boolean NOT NULL DEFAULT false;
       ALTER TABLE avp_client_accounts ADD COLUMN IF NOT EXISTS marketing_consent_at timestamptz;
+      ALTER TABLE avp_client_accounts ADD COLUMN IF NOT EXISTS mfa_enabled boolean NOT NULL DEFAULT false;
+      ALTER TABLE avp_client_accounts ADD COLUMN IF NOT EXISTS mfa_secret_enc text;
+      ALTER TABLE avp_client_accounts ADD COLUMN IF NOT EXISTS mfa_setup_secret_enc text;
+      ALTER TABLE avp_client_accounts ADD COLUMN IF NOT EXISTS pending_email text;
+      ALTER TABLE avp_client_accounts ADD COLUMN IF NOT EXISTS pending_email_token_hash text;
+      ALTER TABLE avp_client_accounts ADD COLUMN IF NOT EXISTS pending_email_expires_at timestamptz;
       CREATE INDEX IF NOT EXISTS idx_avp_marketing_consents_email ON avp_marketing_consents(email);
+      CREATE INDEX IF NOT EXISTS idx_avp_client_accounts_pending_email_token ON avp_client_accounts(pending_email_token_hash);
       CREATE INDEX IF NOT EXISTS idx_avp_client_sessions_account ON avp_client_sessions(account_id);
       CREATE INDEX IF NOT EXISTS idx_avp_client_project_links_account ON avp_client_project_links(account_id);
     `);
@@ -704,6 +743,11 @@ function accountFromRow(row) {
     marketingConsent: row.marketing_consent === true,
     marketingConsentAt: row.marketing_consent_at ? new Date(row.marketing_consent_at).toISOString() : '',
     emailVerified: row.email_verified === true,
+    mfa: { enabled: row.mfa_enabled === true, secretEnc: row.mfa_secret_enc || '' },
+    mfaSetupSecretEnc: row.mfa_setup_secret_enc || '',
+    pendingEmail: row.pending_email || '',
+    pendingEmailTokenHash: row.pending_email_token_hash || '',
+    pendingEmailExpiresAt: row.pending_email_expires_at ? new Date(row.pending_email_expires_at).toISOString() : '',
     trialEndsAt: row.trial_ends_at ? new Date(row.trial_ends_at).toISOString() : '',
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : ''
@@ -835,6 +879,17 @@ async function findClientAccountById(id) {
   if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) return null;
   const db = readAuthAccounts();
   return db.accounts.find(a => a.id === id) || null;
+}
+async function findClientAccountByPhone(phone) {
+  const normalized = normalizePhone(phone || '');
+  if (!normalized) return null;
+  if (await ensureAppDbReady()) {
+    const r = await appDbPool.query("SELECT * FROM avp_client_accounts WHERE regexp_replace(COALESCE(phone,''), '[^0-9]', '', 'g')=$1 LIMIT 1", [normalized]);
+    return accountFromRow(r.rows[0]);
+  }
+  if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) return null;
+  const db = readAuthAccounts();
+  return db.accounts.find(a => normalizePhone(a.phone || '') === normalized) || null;
 }
 async function createClientAccount(account) {
   account.email = normalizeEmail(account.email);
@@ -1081,13 +1136,124 @@ async function updateClientPassword(accountId, password) {
   if (account) { account.password = rec; account.updatedAt = iso(); }
   db.updatedAt = iso(); writeAuthAccounts(db);
 }
+async function updateClientProfileData(accountId, patch = {}) {
+  const fullName = cleanClientText(patch.fullName || '', 255);
+  const companyName = cleanClientText(patch.companyName || '', 255);
+  const phone = cleanClientText(patch.phone || '', 40);
+  if (hasHtmlLikeInput(fullName) || hasHtmlLikeInput(companyName) || hasHtmlLikeInput(phone)) throw new Error('profile_input_invalid');
+  const normalizedPhone = normalizePhone(phone);
+  if (normalizedPhone) {
+    const existingPhone = await findClientAccountByPhone(normalizedPhone);
+    if (existingPhone && existingPhone.id !== accountId) throw new Error('phone_already_used');
+  }
+  if (await ensureAppDbReady()) {
+    await appDbPool.query('UPDATE avp_client_accounts SET full_name=$1,company_name=$2,phone=$3,updated_at=now() WHERE id=$4', [fullName, companyName, normalizedPhone || phone, accountId]);
+    return await findClientAccountById(accountId);
+  }
+  if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) throw new Error(APP_DB_CONFIGURED ? 'app_db_required_but_not_connected' : 'app_db_required_missing_database_url');
+  const db = readAuthAccounts();
+  const account = db.accounts.find(a => a.id === accountId);
+  if (account) { account.fullName = fullName; account.companyName = companyName; account.phone = normalizedPhone || phone; account.updatedAt = iso(); }
+  db.updatedAt = iso(); writeAuthAccounts(db);
+  return account;
+}
+async function beginClientEmailChange(account, newEmail, req = null) {
+  const email = safeEmailInput(newEmail || '');
+  if (!email || email.length < 5 || email.length > 255 || hasHtmlLikeInput(email) || !emailLooksValid(email)) throw new Error('invalid_email');
+  if (normalizeEmail(account.email) === email) return { same: true, account };
+  const existing = await findClientAccountByEmail(email);
+  if (existing && existing.id !== account.id) throw new Error('email_already_used');
+  const rawToken = randomId('email', 24);
+  const tokenHash = sha256(rawToken);
+  const expiresAt = new Date(now() + 30 * 60 * 1000).toISOString();
+  if (await ensureAppDbReady()) {
+    await appDbPool.query('UPDATE avp_client_accounts SET pending_email=$1,pending_email_token_hash=$2,pending_email_expires_at=$3,updated_at=now() WHERE id=$4', [email, tokenHash, new Date(expiresAt), account.id]);
+  } else {
+    if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) throw new Error(APP_DB_CONFIGURED ? 'app_db_required_but_not_connected' : 'app_db_required_missing_database_url');
+    const db = readAuthAccounts();
+    const a = db.accounts.find(x => x.id === account.id);
+    if (a) { a.pendingEmail = email; a.pendingEmailTokenHash = tokenHash; a.pendingEmailExpiresAt = expiresAt; a.updatedAt = iso(); }
+    db.updatedAt = iso(); writeAuthAccounts(db);
+  }
+  const link = `${PUBLIC_BASE_URL}/account/confirm-email-change?token=${encodeURIComponent(rawToken)}`;
+  const mail = await sendAppEmail(email, 'Confirm your new AdProof email', `Confirm this email address for your AdProof account: ${link}\n\nThis link expires in 30 minutes. If you log out before confirming, the change request is cancelled.`, { accountId: account.id, type: 'email_change_confirm', newEmail: email, confirmLink: link });
+  structuredLog('log', 'client_email_change_email_processed', { emailMasked: maskEmail(email), emailHash: emailHash(email), accountId: account.id, status: mail.status, error: mail.error || '', outboxFile: EMAIL_OUTBOX_FILE, smtp: smtpPublicStatus() });
+  return { same: false, email, expiresAt, mail };
+}
+async function clearClientPendingEmailChange(accountId) {
+  if (!accountId) return;
+  if (await ensureAppDbReady()) {
+    await appDbPool.query('UPDATE avp_client_accounts SET pending_email=NULL,pending_email_token_hash=NULL,pending_email_expires_at=NULL,updated_at=now() WHERE id=$1', [accountId]).catch(() => {});
+    return;
+  }
+  if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) return;
+  const db = readAuthAccounts();
+  const a = db.accounts.find(x => x.id === accountId);
+  if (a) { delete a.pendingEmail; delete a.pendingEmailTokenHash; delete a.pendingEmailExpiresAt; a.updatedAt = iso(); db.updatedAt = iso(); writeAuthAccounts(db); }
+}
+async function confirmClientEmailChange(account, rawToken) {
+  const tokenHash = sha256(rawToken || '');
+  if (!account || !tokenHash) throw new Error('invalid_token');
+  let fresh = await findClientAccountById(account.id);
+  if (!fresh || fresh.pendingEmailTokenHash !== tokenHash || !fresh.pendingEmail || Date.parse(fresh.pendingEmailExpiresAt || '') <= now()) throw new Error('invalid_or_expired');
+  const existing = await findClientAccountByEmail(fresh.pendingEmail);
+  if (existing && existing.id !== account.id) throw new Error('email_already_used');
+  if (await ensureAppDbReady()) {
+    await appDbPool.query('UPDATE avp_client_accounts SET email=$1,email_verified=true,pending_email=NULL,pending_email_token_hash=NULL,pending_email_expires_at=NULL,updated_at=now() WHERE id=$2', [fresh.pendingEmail, account.id]);
+  } else {
+    if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) throw new Error(APP_DB_CONFIGURED ? 'app_db_required_but_not_connected' : 'app_db_required_missing_database_url');
+    const db = readAuthAccounts();
+    const a = db.accounts.find(x => x.id === account.id);
+    if (a) { a.email = fresh.pendingEmail; a.emailVerified = true; delete a.pendingEmail; delete a.pendingEmailTokenHash; delete a.pendingEmailExpiresAt; a.updatedAt = iso(); }
+    db.updatedAt = iso(); writeAuthAccounts(db);
+  }
+  structuredLog('log', 'client_email_change_confirmed', { accountId: account.id, emailMasked: maskEmail(fresh.pendingEmail), emailHash: emailHash(fresh.pendingEmail) });
+  return await findClientAccountById(account.id);
+}
+function clientMfaEnabled(account) { return Boolean(account?.mfa?.enabled); }
+function clientMfaSecret(account) {
+  if (!account?.mfa) return '';
+  if (account.mfa.secretEnc) return decryptSecret(account.mfa.secretEnc);
+  return account.mfa.secret || '';
+}
+function clientMfaSetupSecret(account) { return account?.mfaSetupSecretEnc ? decryptSecret(account.mfaSetupSecretEnc) : (account?.mfaSetupSecret || ''); }
+async function setClientMfaSetupSecret(accountId, secret) {
+  if (await ensureAppDbReady()) {
+    await appDbPool.query('UPDATE avp_client_accounts SET mfa_setup_secret_enc=$1,updated_at=now() WHERE id=$2', [encryptSecret(secret), accountId]);
+    return await findClientAccountById(accountId);
+  }
+  if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) throw new Error(APP_DB_CONFIGURED ? 'app_db_required_but_not_connected' : 'app_db_required_missing_database_url');
+  const db = readAuthAccounts(); const a = db.accounts.find(x => x.id === accountId);
+  if (a) { a.mfaSetupSecret = secret; a.updatedAt = iso(); }
+  db.updatedAt = iso(); writeAuthAccounts(db); return a;
+}
+async function enableClientMfa(accountId, secret) {
+  if (await ensureAppDbReady()) {
+    await appDbPool.query('UPDATE avp_client_accounts SET mfa_enabled=true,mfa_secret_enc=$1,mfa_setup_secret_enc=NULL,updated_at=now() WHERE id=$2', [encryptSecret(secret), accountId]);
+    return await findClientAccountById(accountId);
+  }
+  if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) throw new Error(APP_DB_CONFIGURED ? 'app_db_required_but_not_connected' : 'app_db_required_missing_database_url');
+  const db = readAuthAccounts(); const a = db.accounts.find(x => x.id === accountId);
+  if (a) { a.mfa = { enabled: true, secret }; delete a.mfaSetupSecret; a.updatedAt = iso(); }
+  db.updatedAt = iso(); writeAuthAccounts(db); return a;
+}
+async function disableClientMfa(accountId) {
+  if (await ensureAppDbReady()) {
+    await appDbPool.query('UPDATE avp_client_accounts SET mfa_enabled=false,mfa_secret_enc=NULL,mfa_setup_secret_enc=NULL,updated_at=now() WHERE id=$1', [accountId]);
+    return await findClientAccountById(accountId);
+  }
+  if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) throw new Error(APP_DB_CONFIGURED ? 'app_db_required_but_not_connected' : 'app_db_required_missing_database_url');
+  const db = readAuthAccounts(); const a = db.accounts.find(x => x.id === accountId);
+  if (a) { a.mfa = { enabled: false, secret: '' }; delete a.mfaSetupSecret; a.updatedAt = iso(); }
+  db.updatedAt = iso(); writeAuthAccounts(db); return a;
+}
 function resetTokenIsValid(rec) { return Boolean(rec && !rec.usedAt && Date.parse(rec.expiresAt || '') > now()); }
 function validateNewPasswordFields(input) {
   const password = String(input.password || '');
   const confirmPassword = String(input.confirmPassword || '');
   const errors = [];
   if (!password) errors.push('New password is required.');
-  else if (password.length < 8 || password.length > 20 || !/[A-Za-z]/.test(password) || !/\d/.test(password) || hasHtmlLikeInput(password)) errors.push('Password must be 8–20 characters and include at least one letter and one number.');
+  else if (!passwordPolicyOk(password)) errors.push(passwordPolicyMessage());
   if (password !== confirmPassword) errors.push('Passwords do not match.');
   return { ok: errors.length === 0, errors, password, confirmPassword };
 }
@@ -1231,12 +1397,12 @@ function createProjectApiKey(project, kind = 'events_ingest', label = '') {
 const PLAN_LIMITS = {
   // Free month while the product is getting validated. Practical cap: enough for real beta testing,
   // but not enough for a very large publisher to burn infrastructure as 10+ commercial projects.
-  beta: { label: 'Beta', monthlyEvents: 3000000, dailyVisits: 100000, monthlyServerVerifications: 600000, eventsPerMinute: 900, sessionsPerMinute: 180, eventsPerVisitorPerMinute: 120, maxDomains: 2, maxProjects: 1 },
+  beta: { label: 'Trial', monthlyEvents: 3000000, dailyVisits: 100000, monthlyServerVerifications: 600000, eventsPerMinute: 900, sessionsPerMinute: 180, eventsPerVisitorPerMinute: 120, maxDomains: 2, maxProjects: 1 },
   // Normal monthly subscription. Projects are limited, but usage is still the main resource cap.
   classic: { label: 'Classic', monthlyEvents: 30000000, dailyVisits: 1000000, monthlyServerVerifications: 6000000, eventsPerMinute: 3000, sessionsPerMinute: 900, eventsPerVisitorPerMinute: 180, maxDomains: 8, maxProjects: 3 },
   enterprise: { label: 'Enterprise', monthlyEvents: 250000000, dailyVisits: 10000000, monthlyServerVerifications: 50000000, eventsPerMinute: 12000, sessionsPerMinute: 4000, eventsPerVisitorPerMinute: 240, maxDomains: 50, maxProjects: 25 },
   // Legacy aliases kept so older rows do not break.
-  pilot: { label: 'Beta', monthlyEvents: 3000000, dailyVisits: 100000, monthlyServerVerifications: 600000, eventsPerMinute: 900, sessionsPerMinute: 180, eventsPerVisitorPerMinute: 120, maxDomains: 2, maxProjects: 1 },
+  pilot: { label: 'Trial', monthlyEvents: 3000000, dailyVisits: 100000, monthlyServerVerifications: 600000, eventsPerMinute: 900, sessionsPerMinute: 180, eventsPerVisitorPerMinute: 120, maxDomains: 2, maxProjects: 1 },
   growth: { label: 'Enterprise', monthlyEvents: 250000000, dailyVisits: 10000000, monthlyServerVerifications: 50000000, eventsPerMinute: 12000, sessionsPerMinute: 4000, eventsPerVisitorPerMinute: 240, maxDomains: 50, maxProjects: 25 }
 };
 function planFor(project) { return PLAN_LIMITS[project?.planId || 'beta'] || PLAN_LIMITS.beta; }
@@ -1256,6 +1422,12 @@ function checkMonthlyQuota(project, metric) {
   return true;
 }
 function sanitizeDomain(domain) { return String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^\*\./, ''); }
+function isValidClientProjectDomain(domain) {
+  const d = sanitizeDomain(domain);
+  if (!d || d.length < 4 || d.length > 253) return false;
+  if (d === 'localhost' || /^127\./.test(d)) return false;
+  return /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(d);
+}
 function uniqueDomainList(domains = []) {
   const out = [];
   const seen = new Set();
@@ -1501,6 +1673,11 @@ function writeDeadLetterEvent(reason, event, err = null) {
   } catch {}
 }
 function appendEventLog(event) {
+  if (!LOCAL_EVENT_LOG_ENABLED && !(scalableRuntime && (scalableRuntime.isRedisQueueEnabled() || scalableRuntime.isPostgresDirectEventWriteEnabled()))) {
+    appendAlert('event_log_disabled_without_remote_sink', 'critical', { projectId: event && event.projectId || '', type: event && event.type || '' });
+    if (QUEUE_ON_EVENT_WRITE_FAILURE) writeDeadLetterEvent('event-log-disabled-without-remote-sink', event);
+    return false;
+  }
   if (scalableRuntime && scalableRuntime.isRedisQueueEnabled()) {
     scalableRuntime.publishEvent(event).catch(err => {
       appendAlert('redis_event_publish_failed', 'critical', { message: err.message, projectId: event.projectId || '', type: event.type || '' });
@@ -1526,6 +1703,7 @@ function appendEventLog(event) {
 }
 
 function flushEventLogQueue() {
+  if (!LOCAL_EVENT_LOG_ENABLED) return;
   if (eventWriteFlushing) return;
   eventWriteFlushing = true;
   setImmediate(() => {
@@ -1551,6 +1729,7 @@ function flushEventLogQueue() {
 }
 
 function rotateEventLogs() {
+  if (!LOCAL_EVENT_LOG_ENABLED) return;
   fs.mkdirSync(EVENT_LOG_DIR, { recursive: true });
   const retentionCutoff = now() - EVENT_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
   const gzipCutoff = now() - OLD_EVENT_LOG_GZIP_AFTER_DAYS * 24 * 60 * 60 * 1000;
@@ -1582,7 +1761,7 @@ function persistentStateSnapshot() {
   if (!PERSIST_EVENT_STATS_IN_JSON) {
     copy.projectStats = {};
     copy.globalEvents = [];
-    copy.analyticsNote = 'Cluster mode: event counters and recent events are intentionally not persisted to JSON. Redis Streams and PostgreSQL are the source of truth for event analytics.';
+    copy.analyticsNote = 'DB-first mode: event counters and recent events are intentionally not persisted to JSON. PostgreSQL is the source of truth for event analytics.';
   }
   copy.runtimeNote = scalableRuntime && scalableRuntime.isRedisRuntimeEnabled()
     ? 'Cluster mode: visitor sessions are stored in Redis. Admin sessions stay local runtime-only.'
@@ -1601,6 +1780,7 @@ function loadRuntimeSessions() {
 }
 let runtimeSaveTimer = null;
 function saveRuntimeNow() {
+  if (!LOCAL_RUNTIME_WRITE_ENABLED) return;
   ensureDir(path.dirname(RUNTIME_FILE));
   atomicWriteJson(RUNTIME_FILE, {
     schema: 'avp.runtime.v1',
@@ -1612,6 +1792,7 @@ function saveRuntimeNow() {
   });
 }
 function scheduleRuntimeSave() {
+  if (!LOCAL_RUNTIME_WRITE_ENABLED) return;
   if (runtimeSaveTimer) return;
   runtimeSaveTimer = setTimeout(() => {
     runtimeSaveTimer = null;
@@ -1628,10 +1809,10 @@ function latestValidBackup() {
 }
 function loadState() {
   ensureDataDir();
-  fs.mkdirSync(EVENT_LOG_DIR, { recursive: true });
+  if (LOCAL_EVENT_LOG_ENABLED) fs.mkdirSync(EVENT_LOG_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
     const fresh = normalizeState(defaultState());
-    atomicWriteJson(DATA_FILE, fresh);
+    if (LOCAL_STATE_WRITE_ENABLED) atomicWriteJson(DATA_FILE, fresh);
     return fresh;
   }
   try {
@@ -1853,7 +2034,7 @@ function saveNow() {
   for (const st of Object.values(state.projectStats || {})) {
     if (st && Array.isArray(st.recentEvents)) st.recentEvents = st.recentEvents.slice(-MAX_RECENT_PROJECT_EVENTS);
   }
-  atomicWriteJson(DATA_FILE, persistentStateSnapshot());
+  if (LOCAL_STATE_WRITE_ENABLED) atomicWriteJson(DATA_FILE, persistentStateSnapshot());
   scheduleRuntimeSave();
 }
 function scheduleSave() {
@@ -1863,6 +2044,148 @@ function scheduleSave() {
     try { saveNow(); } catch (err) { console.error('[state] save failed:', err.message); }
   }, 200);
 }
+
+const MANUAL_TEST_SITE_A_NAME = 'Manual Test Site A — localhost only';
+const MANUAL_TEST_SITE_B_NAME = 'Manual Test Site B — 127.0.0.2 only';
+
+function manualTestHardening() {
+  return {
+    webCryptoProof: true,
+    canvasProof: true,
+    signedEvents: true,
+    signedEventsStrict: true,
+    eventBatching: true,
+    domNoise: true,
+    domNoiseMin: 500,
+    domNoiseMax: 700,
+    heartbeat: true,
+    heartbeatIntervalMs: DEFAULT_HEARTBEAT_INTERVAL,
+    scheduledRerender: true,
+    rerenderIntervalMs: DEFAULT_RERENDER_INTERVAL,
+    maxRestores: 4,
+    hardLockOnBlock: true,
+    dynamicSdkUrl: true,
+    polymorphicWrapper: true,
+    encryptedSecrets: true,
+    adaptivePerformance: true,
+    pauseWhenHidden: true,
+    mobileDomNoiseMax: 160
+  };
+}
+
+function manualTestProjectTemplate(companyId, name, allowedDomains, gradient) {
+  const project = {
+    id: randomId('prj'),
+    companyId,
+    name,
+    publicKey: randomKey('avp_pub'),
+    allowedDomains: uniqueDomainList(allowedDomains),
+    mode: 'server-gate',
+    protectedSelector: '#protected-content',
+    adContainerSelector: '#ad-slot',
+    marketBenchmarkPercent: 33,
+    loaderEnabled: true,
+    enabled: true,
+    killSwitch: false,
+    sdkVersion: DEFAULT_SDK_VERSION,
+    sdkChannel: DEFAULT_SDK_CHANNEL,
+    canaryPercent: CANARY_PERCENT,
+    fallbackPolicy: 'balanced',
+    planId: 'pilot',
+    trialEndsAt: new Date(now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    quota: { monthlyEvents: PLAN_LIMITS.beta.monthlyEvents, monthlyServerVerifications: PLAN_LIMITS.beta.monthlyServerVerifications, maxDomains: PLAN_LIMITS.enterprise.maxDomains },
+    pathRules: { allow: [], deny: [] },
+    overlayCopy: {
+      blockTitle: 'Ad visibility could not be verified',
+      blockMessage: 'The ad area is blocked, hidden, removed, unavailable, or the SDK tag belongs to another domain. Please use the correct project tag for this site.',
+      softTitle: 'Connection issue detected',
+      softMessage: 'Some page resources did not load. Please refresh the page after the connection is restored.'
+    },
+    domainVerification: defaultDomainVerification(allowedDomains),
+    limits: { eventsPerMinute: MAX_EVENTS_PER_PROJECT_PER_MINUTE, sessionsPerMinute: MAX_SESSIONS_PER_PROJECT_PER_MINUTE, proofAttemptsPerVisitor: MAX_PROOF_ATTEMPTS_PER_VISITOR, eventsPerVisitorPerMinute: MAX_EVENTS_PER_VISITOR_PER_MINUTE },
+    autoCreateAdContainer: true,
+    strictness: 'strict',
+    ui: { color: gradient === 'blue' ? 'blue' : 'violet', gradient: gradient || 'violet' },
+    hardening: manualTestHardening(),
+    tags: ['manual-two-site-test'],
+    createdAt: iso(),
+    updatedAt: iso()
+  };
+  setProjectSecret(project, randomKey('avp_sec'));
+  return normalizeState({ projects: [project] }).projects[0];
+}
+
+function ensureManualTwoSiteProjects() {
+  if (APP_ENV === 'production' || APP_ENV === 'test' || String(process.env.DISABLE_MANUAL_TEST_PROJECTS || '').toLowerCase() === 'true') return;
+  let changed = false;
+  let company = (state.companies || []).find(c => c.name === 'Manual Two-Site Test');
+  if (!company) {
+    company = { id: randomId('cmp'), name: 'Manual Two-Site Test', contactEmail: 'manual-test@example.com', notes: 'Local demo company for cross-domain script-tag reuse checks.', createdAt: iso() };
+    state.companies.push(company);
+    changed = true;
+  }
+
+  function ensureOne(name, domains, gradient) {
+    let project = (state.projects || []).find(p => p.name === name);
+    if (!project) {
+      project = manualTestProjectTemplate(company.id, name, domains, gradient);
+      state.projects.push(project);
+      state.projectStats[project.id] = defaultProjectStats();
+      changed = true;
+      return project;
+    }
+    project.companyId = company.id;
+    const wanted = uniqueDomainList(domains);
+    const current = uniqueDomainList(project.allowedDomains || []);
+    if (wanted.join('|') !== current.join('|')) { project.allowedDomains = wanted; changed = true; }
+    project.mode = 'server-gate';
+    project.enabled = true;
+    project.killSwitch = false;
+    project.sdkVersion = project.sdkVersion || DEFAULT_SDK_VERSION;
+    project.sdkChannel = project.sdkChannel || DEFAULT_SDK_CHANNEL;
+    project.protectedSelector = '#protected-content';
+    project.adContainerSelector = '#ad-slot';
+    project.strictness = 'strict';
+    project.hardening = Object.assign(manualTestHardening(), project.hardening || {});
+    project.hardening.webCryptoProof = true;
+    project.hardening.canvasProof = true;
+    project.hardening.heartbeat = true;
+    project.hardening.scheduledRerender = true;
+    project.hardening.domNoise = true;
+    project.domainVerification = Object.assign(defaultDomainVerification(project.allowedDomains || []), project.domainVerification || {});
+    if (!state.projectStats[project.id]) { state.projectStats[project.id] = defaultProjectStats(); changed = true; }
+    project.updatedAt = iso();
+    return project;
+  }
+
+  const a = ensureOne(MANUAL_TEST_SITE_A_NAME, ['localhost'], 'violet');
+  const b = ensureOne(MANUAL_TEST_SITE_B_NAME, ['127.0.0.2'], 'blue');
+  if (a && b && a.publicKey === b.publicKey) {
+    b.publicKey = randomKey('avp_pub');
+    setProjectSecret(b, randomKey('avp_sec'));
+    changed = true;
+  }
+  if (changed) {
+    state = normalizeState(state);
+    try { saveNow(); } catch { scheduleSave(); }
+  }
+}
+
+ensureManualTwoSiteProjects();
+async function ensureManualTwoSiteProjectsPersistedToPostgres() {
+  if (APP_ENV === 'test' || String(process.env.DISABLE_MANUAL_TEST_PROJECTS || '').toLowerCase() === 'true') return;
+  try {
+    await ensureScalableRuntimeReady();
+    if (!scalableRuntime.isPostgresEnabled()) return;
+    const manualProjects = (state.projects || []).filter(p => Array.isArray(p.tags) && p.tags.includes('manual-two-site-test'));
+    for (const project of manualProjects) await persistProjectConfigToPostgres(project);
+    await syncProjectConfigFromPostgres();
+    structuredLog('log', 'manual_two_site_projects_persisted_postgres', { projects: manualProjects.map(p => ({ id: p.id, name: p.name, publicKey: p.publicKey, allowedDomains: p.allowedDomains })) });
+  } catch (err) {
+    structuredLog('error', 'manual_two_site_projects_postgres_persist_failed', { error: err.message });
+  }
+}
+scalableRuntimeReady.then(() => ensureManualTwoSiteProjectsPersistedToPostgres()).catch(() => {});
 function backupNow(reason = 'manual') {
   ensureDataDir();
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
@@ -2086,7 +2409,9 @@ function testSiteScriptDebug(project) {
     siteAAllowedStableUrl: `${PUBLIC_BASE_URL}/test-site/article?projectKey=${encodeURIComponent(project.publicKey)}&sdkMode=stable`,
     siteBForeignUrl: `${PUBLIC_BASE_URL.replace('localhost', '127.0.0.2')}/foreign-test-site?projectKey=${encodeURIComponent(project.publicKey)}&sdkMode=boot`,
     siteBForeignStableUrl: `${PUBLIC_BASE_URL.replace('localhost', '127.0.0.2')}/foreign-test-site?projectKey=${encodeURIComponent(project.publicKey)}&sdkMode=stable`,
-    expected: 'Customer integration uses the stable /sdk/v1/<publicKey>.js tag. Test pages default to boot-xxxx.js so the dynamic bootstrap/chunk flow is also covered. Site A passes only when its host is in allowedDomains; Site B blocks unless 127.0.0.2 is allowed.'
+    manualSiteAStableUrl: `${publicBaseForHost('localhost')}/manual-test/site-a?projectKey=${encodeURIComponent(project.publicKey)}&sdkMode=stable`,
+    manualSiteBStableUrl: `${publicBaseForHost('127.0.0.2')}/manual-test/site-b?projectKey=${encodeURIComponent(project.publicKey)}&sdkMode=stable`,
+    expected: 'Customer integration uses the stable /sdk/v1/<publicKey>.js tag. Test pages default to boot-xxxx.js so the dynamic bootstrap/chunk flow is also covered. Manual test matrix uses two real demo projects: Site A is allowed only on localhost, Site B only on 127.0.0.2.'
   };
 }
 async function currentProjectScriptDebugList(limit = 10) {
@@ -2109,6 +2434,9 @@ function logStaticTestSiteScripts() {
     console.log('[beta] Customer SDK tag stays static: /sdk/v1/<publicKey>.js');
     console.log('[beta] Test pages default to dynamic boot: /sdk/v1/<publicKey>/boot-xxxx.js');
     console.log(`[beta] Test launcher: ${PUBLIC_BASE_URL}/test-site`);
+    console.log(`[beta] Manual two-site matrix: ${PUBLIC_BASE_URL}/manual-test`);
+    console.log(`[beta] Manual Site A host: ${publicBaseForHost('localhost')}/manual-test/site-a?projectKey=<siteAKey>&sdkMode=stable`);
+    console.log(`[beta] Manual Site B host: ${publicBaseForHost('127.0.0.2')}/manual-test/site-b?projectKey=<siteBKey>&sdkMode=stable`);
     console.log(`[beta] Site A allowed host: ${PUBLIC_BASE_URL}/test-site/article?projectKey=<publicKey>&sdkMode=boot`);
     console.log(`[beta] Site B foreign host: ${PUBLIC_BASE_URL.replace('localhost', '127.0.0.2')}/foreign-test-site?projectKey=<publicKey>&sdkMode=boot`);
     console.log(`[beta] Debug script map: ${PUBLIC_BASE_URL}/debug/test-site-scripts`);
@@ -2397,33 +2725,77 @@ function makeAdHtml(project, reason = 'initial', opts = {}) {
   `;
 }
 
+
+function portalProfileOverlayScript() {
+  return `<script>(function(){
+    function qsa(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+    function clamp(value,min,max){ return Math.max(min, Math.min(value,max)); }
+    function bindProfile(profile){
+      if(!profile || profile.dataset.portalBound==='1') return;
+      var trigger = profile.querySelector('button');
+      var menu = profile.querySelector('.portal-profile-menu');
+      if(!trigger || !menu) return;
+      profile.dataset.portalBound='1';
+      menu.classList.add('profile-menu-portal');
+      document.body.appendChild(menu);
+      var closeTimer=null;
+      function size(){ var w=Math.min(236, Math.max(190, window.innerWidth-24)); var h=Math.min(Math.max(menu.scrollHeight||142,120), Math.max(120, window.innerHeight-24)); return {w:w,h:h}; }
+      function place(){
+        var rect=trigger.getBoundingClientRect(); var s=size();
+        var top = rect.bottom + 8; var left = rect.right - s.w;
+        if(window.innerWidth <= 680){ top = rect.bottom + 8; left = window.innerWidth - s.w - 12; }
+        top = clamp(top,12,Math.max(12,window.innerHeight-s.h-12));
+        left = clamp(left,12,Math.max(12,window.innerWidth-s.w-12));
+        menu.style.top=Math.round(top)+'px'; menu.style.left=Math.round(left)+'px'; menu.style.width=Math.round(s.w)+'px';
+      }
+      function open(){ clearTimeout(closeTimer); place(); menu.classList.add('profile-menu-portal-open'); }
+      function close(){ clearTimeout(closeTimer); menu.classList.remove('profile-menu-portal-open'); }
+      function closeSoon(){ clearTimeout(closeTimer); closeTimer=setTimeout(close,140); }
+      trigger.addEventListener('mouseenter',open); trigger.addEventListener('focus',open);
+      trigger.addEventListener('click',function(e){ e.preventDefault(); if(menu.classList.contains('profile-menu-portal-open')) close(); else open(); });
+      trigger.addEventListener('mouseleave',closeSoon); menu.addEventListener('mouseenter',function(){clearTimeout(closeTimer);}); menu.addEventListener('mouseleave',closeSoon);
+      menu.addEventListener('focusin',open); menu.addEventListener('focusout',closeSoon);
+      window.addEventListener('resize',function(){ if(menu.classList.contains('profile-menu-portal-open')) place(); });
+      window.addEventListener('scroll',function(){ if(menu.classList.contains('profile-menu-portal-open')) place(); }, {passive:true});
+      document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    }
+    qsa('.portal-profile').forEach(bindProfile);
+  })();</script>`;
+}
+
 function appShell(title, body, user = null) {
   const isClient = user && user.role === 'client_owner';
   const homeHref = '/';
   const dashboardHref = isClient ? '/account' : '/admin';
-  const securityHref = isClient ? '/account#security' : '/admin/security';
+  const securityHref = isClient ? '/account/profile#security' : '/admin/security';
   const docsHref = '/docs.html';
-  const displayName = user ? esc(user.fullName || user.name || user.email || 'Account') : '';
   const profileMenu = user ? (isClient
-    ? `<span class="portal-profile"><button type="button">Profile</button><span class="portal-profile-menu"><a href="/account">${displayName}</a><form method="post" action="/logout" style="margin:0">${clientCsrfInput(user)}<button>Logout</button></form></span></span>`
-    : `<span class="portal-profile"><button type="button">Profile</button><span class="portal-profile-menu"><a href="/admin">${displayName}</a><form method="post" action="/admin/logout" style="margin:0">${csrfInput(user)}<button>Logout</button></form></span></span>`)
+    ? `<span class="portal-profile"><button type="button">Profile</button><span class="portal-profile-menu"><a href="/account">Dashboard</a><a href="/account/profile">Personal data</a><form method="post" action="/logout" style="margin:0">${clientCsrfInput(user)}<button>Logout</button></form></span></span>`
+    : `<span class="portal-profile"><button type="button">Profile</button><span class="portal-profile-menu"><a href="/admin">Dashboard</a><a href="/admin/security">Security</a><form method="post" action="/admin/logout" style="margin:0">${csrfInput(user)}<button>Logout</button></form></span></span>`)
     : `<a href="/login">Login</a>`;
+  const navLinks = isClient
+    ? `<a href="${homeHref}">Home</a><a href="${docsHref}">Docs</a>`
+    : `<a href="${homeHref}">Home</a><a href="${dashboardHref}">Dashboard</a><a href="${securityHref}">Security</a><a href="${docsHref}">Docs</a>`;
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
 <style>
-:root{--ivory:#fdf9e9;--ivory2:#fffdf4;--ink:#1a1a1a;--muted:#766f66;--blue:#4a90d9;--blue2:#dff0ff;--card:rgba(255,255,255,.72);--line:rgba(20,20,20,.1);--good:#257a50;--bad:#9f3434;--warn:#9b6b1d}*{box-sizing:border-box}body{margin:0;background:rgb(253,249,233);font-family:Inter,Arial,sans-serif;color:var(--ink);min-height:100vh}a{color:#236ca8;text-decoration:none}a:hover{text-decoration:underline}.top{background:rgba(18,18,18,.96);color:#fff;padding:0;box-shadow:0 12px 38px rgba(0,0,0,.13)}.top-inner{width:min(100%,1180px);min-height:72px;margin:0 auto;padding:0 22px;display:flex;justify-content:space-between;align-items:center;gap:18px}.portal-logo{display:flex;align-items:center;gap:12px;color:#fff;text-decoration:none;font-weight:600;letter-spacing:.2px;min-width:230px}.portal-logo:hover{text-decoration:none}.portal-logo img{width:40px;height:40px;object-fit:contain;display:block;filter:brightness(0) invert(1)}.nav{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex-wrap:wrap;font-size:13px}.nav a,.nav button{color:rgba(255,255,255,.78);background:transparent;border:0;font:inherit;font-size:13px;font-weight:600!important;cursor:pointer;border-radius:999px;padding:9px 10px;opacity:1;text-decoration:none}.nav a:hover,.nav button:hover{background:rgba(255,255,255,.09);color:#fff;text-decoration:none}.portal-profile{position:relative;display:inline-flex}.portal-profile-menu{display:none;position:absolute;right:0;top:calc(100% + 10px);min-width:220px;background:#fff;color:#111;border:1px solid var(--line);border-radius:18px;padding:8px;box-shadow:0 24px 70px rgba(0,0,0,.18);z-index:20}.portal-profile:hover .portal-profile-menu,.portal-profile:focus-within .portal-profile-menu{display:block}.portal-profile-menu a,.portal-profile-menu button{display:block;width:100%;text-align:left;color:#111!important;background:transparent!important;border:0;border-radius:12px;padding:10px 12px;font-size:13px;font-weight:600;text-decoration:none}.portal-profile-menu a:hover,.portal-profile-menu button:hover{background:#f3efe6!important;color:#111!important}.wrap{max-width:1180px;margin:32px auto;padding:0 22px}.grid{display:grid;gap:18px}.grid.cols4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 20px 70px rgba(72,59,39,.08);backdrop-filter:blur(10px)}.kpi .num{font-size:34px;font-weight:600;margin:8px 0 4px}.kpi .label{color:var(--muted);font-size:13px;line-height:1.4}.title{font-size:30px;margin:0 0 8px}.lead{color:var(--muted);line-height:1.7;max-width:850px}.btn{display:inline-flex;align-items:center;gap:8px;background:#121212;color:#fff;border:0;border-radius:14px;padding:11px 15px;font-weight:600;cursor:pointer;text-decoration:none}.btn.blue{background:var(--blue)}.btn.ghost{background:rgba(255,255,255,.7);color:#111;border:1px solid var(--line)}.btn:hover{text-decoration:none;filter:brightness(.98)}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px 13px;background:rgba(255,255,255,.82);font:inherit}label{display:block;font-size:13px;font-weight:600;margin:0 0 7px}.field{margin-bottom:15px}.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px;vertical-align:top}.table th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}.pill{display:inline-block;padding:5px 8px;border-radius:999px;background:var(--blue2);color:#245b83;font-size:12px;font-weight:600}.pill.good{background:#e2f5ea;color:var(--good)}.pill.bad{background:#fae9e9;color:var(--bad)}.pill.warn{background:#fff1d5;color:var(--warn)}pre{white-space:pre-wrap;word-break:break-word;background:#111;color:#edf7ff;border-radius:16px;padding:16px;line-height:1.55;font-size:13px}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.muted{color:var(--muted)}.section{margin-top:22px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.split{display:grid;grid-template-columns:1.2fr .8fr;gap:20px}.notice{border-left:4px solid var(--blue);background:rgba(223,240,255,.55);padding:14px 16px;border-radius:14px;color:#244d6b;line-height:1.55}.client-popover{position:fixed;right:24px;top:92px;z-index:1000;max-width:330px;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:22px;padding:14px 16px;box-shadow:0 22px 70px rgba(38,28,15,.16);transform:translateY(-4px);animation:clientPopoverIn .28s ease both}.client-popover h3{margin:0 0 5px;font-size:17px;letter-spacing:-.2px}.client-popover p{color:var(--muted);line-height:1.42;margin:0;font-size:13px}.client-popover .x{position:absolute;right:10px;top:8px;border:0;background:transparent;font-size:18px;cursor:pointer}.client-popover.login-popover{max-width:250px;padding:10px 12px;border-radius:18px;animation:clientPopoverIn .24s ease both, clientPopoverOut .42s ease 3s forwards}.client-popover.login-popover h3{font-size:15px;margin-right:18px}.client-popover.login-popover p{font-size:12px}.account-summary{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px}.account-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.78);color:#2c2a28;font-size:13px;font-weight:600}.account-chip.trial{background:#e2f5ea;color:var(--good);border-color:rgba(37,122,80,.18)}@keyframes clientPopoverIn{from{opacity:0;transform:translateY(-10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes clientPopoverOut{to{opacity:0;transform:translateY(-10px) scale(.98);pointer-events:none}}.project-card{position:relative;overflow:hidden}.project-card:before{content:'';position:absolute;inset:0 0 auto;height:8px;background:var(--project-gradient,linear-gradient(90deg,#111,#4a90d9))}.project-card .card-body{padding-top:8px}.create-project-tile{width:100%;min-height:160px;display:grid;place-items:center;border:1px dashed rgba(20,20,20,.22);background:rgba(255,255,255,.54);border-radius:22px;color:#111;font-size:20px;cursor:pointer}.create-project-tile:hover{background:#fff;text-decoration:none}.project-modal{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:22px;background:rgba(5,5,5,.58);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .2s ease}.project-modal.open{opacity:1;pointer-events:auto}.project-modal-card{position:relative;max-width:860px;width:min(860px,100%);max-height:min(86vh,900px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:28px;padding:24px;box-shadow:0 30px 100px rgba(0,0,0,.24);transform:translateY(16px) scale(.98);transition:transform .2s ease}.project-modal.open .project-modal-card{transform:none}.modal-close{position:absolute;right:16px;top:14px;border:0;background:#f5f1e9;border-radius:999px;width:34px;height:34px;font-size:21px;cursor:pointer}.mini-chart{display:flex;align-items:end;gap:8px;height:98px;padding:14px;border-radius:18px;background:rgba(255,255,255,.55);border:1px solid var(--line)}.mini-chart span{display:block;flex:1;min-width:10px;border-radius:9px 9px 3px 3px;background:linear-gradient(180deg,#7b5cff,#1f5f94);height:var(--h,12%)}.soft-panel{background:linear-gradient(135deg,rgba(123,92,255,.11),rgba(74,144,217,.12));border:1px solid rgba(88,72,180,.16);border-radius:24px;padding:18px}.swatches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.swatch{border-radius:14px;padding:10px 8px;background:var(--g);color:#fff;font-size:12px;font-weight:600;text-align:center}.danger{border-left-color:#bd3f3f;background:rgba(255,235,235,.7);color:#713333}.ok{border-left-color:#268454;background:rgba(226,245,234,.7);color:#225c3d}@media(max-width:900px){.grid.cols4,.grid.cols3,.split,.row{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column;padding-top:14px;padding-bottom:14px}.portal-logo{min-width:auto}.wrap{margin:22px auto}.title{font-size:24px}}.top :where(.brand,.nav a,.nav button),.btn,label,.pill,.swatch,.table th,.kpi .num,.client-popover h3,.notice,strong,b{font-weight:600!important}.title,h1,h2,h3{font-weight:700}
+:root{--ivory:#fdf9e9;--ivory2:#fffdf4;--ink:#1a1a1a;--muted:#766f66;--blue:#4a90d9;--blue2:#dff0ff;--card:rgba(255,255,255,.72);--line:rgba(20,20,20,.1);--good:#257a50;--bad:#9f3434;--warn:#9b6b1d}*{box-sizing:border-box}body{margin:0;background:rgb(253,249,233);font-family:Inter,Arial,sans-serif;color:var(--ink);min-height:100vh}a{color:#236ca8;text-decoration:none}a:hover{text-decoration:underline}.top{background:rgba(18,18,18,.96);color:#fff;padding:0;box-shadow:0 12px 38px rgba(0,0,0,.13)}.top-inner{width:min(100%,1180px);min-height:72px;margin:0 auto;padding:0 22px;display:flex;justify-content:space-between;align-items:center;gap:18px}.portal-logo{display:flex;align-items:center;gap:12px;color:#fff;text-decoration:none;font-weight:600;letter-spacing:.2px;min-width:230px}.portal-logo:hover{text-decoration:none}.portal-logo img{width:40px;height:40px;object-fit:contain;display:block;filter:brightness(0) invert(1)}.nav{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex-wrap:wrap;font-size:13px}.nav a,.nav button{color:rgba(255,255,255,.78);background:transparent;border:0;font:inherit;font-size:13px;font-weight:600!important;cursor:pointer;border-radius:999px;padding:9px 10px;opacity:1;text-decoration:none}.nav a:hover,.nav button:hover{background:rgba(255,255,255,.09);color:#fff;text-decoration:none}.portal-profile{position:relative;display:inline-flex}.portal-profile:after{content:'';position:absolute;left:-10px;right:-10px;top:100%;height:22px}.portal-profile-menu{display:none;position:absolute;right:0;top:calc(100% + 8px);min-width:220px;background:#fff;color:#111;border:1px solid var(--line);border-radius:18px;padding:8px;box-shadow:0 24px 70px rgba(0,0,0,.18);z-index:20}.portal-profile-menu:before{content:'';position:absolute;left:0;right:0;bottom:100%;height:14px}.portal-profile:hover .portal-profile-menu,.portal-profile:focus-within .portal-profile-menu{display:block}.portal-profile-menu a,.portal-profile-menu button{display:block;width:100%;text-align:left;color:#111!important;background:transparent!important;border:0;border-radius:12px;padding:10px 12px;font-size:13px;font-weight:600;text-decoration:none}.portal-profile-menu a:hover,.portal-profile-menu button:hover{background:#f3efe6!important;color:#111!important}.wrap{width:100%;max-width:1180px;margin:clamp(34px,5.8vh,64px) auto 48px;padding:0 22px}.grid{display:grid;gap:18px}.grid.cols4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 20px 70px rgba(72,59,39,.08);backdrop-filter:blur(10px)}.kpi .num{font-size:34px;font-weight:600;margin:8px 0 4px}.kpi .label{color:var(--muted);font-size:13px;line-height:1.4}.title{font-size:30px;margin:0 0 8px}.lead{color:var(--muted);line-height:1.7;max-width:850px}.btn{display:inline-flex;align-items:center;gap:8px;background:#121212;color:#fff;border:0;border-radius:14px;padding:11px 15px;font-weight:600;cursor:pointer;text-decoration:none}.btn.blue{background:var(--blue)}.btn.ghost{background:rgba(255,255,255,.7);color:#111;border:1px solid var(--line)}.btn:hover{text-decoration:none;filter:brightness(.98)}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px 13px;background:rgba(255,255,255,.82);font:inherit}label{display:block;font-size:13px;font-weight:600;margin:0 0 7px}.field{margin-bottom:15px}.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px;vertical-align:top}.table th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}.pill{display:inline-block;padding:5px 8px;border-radius:999px;background:var(--blue2);color:#245b83;font-size:12px;font-weight:600}.pill.good{background:#e2f5ea;color:var(--good)}.pill.bad{background:#fae9e9;color:var(--bad)}.pill.warn{background:#fff1d5;color:var(--warn)}pre{white-space:pre-wrap;word-break:break-word;background:#111;color:#edf7ff;border-radius:16px;padding:16px;line-height:1.55;font-size:13px}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.muted{color:var(--muted)}.section{margin-top:22px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.split{display:grid;grid-template-columns:1.2fr .8fr;gap:20px}.notice{border-left:4px solid var(--blue);background:rgba(223,240,255,.55);padding:14px 16px;border-radius:14px;color:#244d6b;line-height:1.55}.client-popover{position:fixed;right:24px;top:92px;z-index:1000;max-width:330px;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:22px;padding:14px 16px;box-shadow:0 22px 70px rgba(38,28,15,.16);transform:translateY(-4px);animation:clientPopoverIn .28s ease both}.client-popover h3{margin:0 0 5px;font-size:17px;letter-spacing:-.2px}.client-popover p{color:var(--muted);line-height:1.42;margin:0;font-size:13px}.client-popover .x{position:absolute;right:10px;top:8px;border:0;background:transparent;font-size:18px;cursor:pointer}.client-popover.login-popover{max-width:250px;padding:10px 12px;border-radius:18px;animation:clientPopoverIn .24s ease both, clientPopoverOut .42s ease 3s forwards}.client-popover.login-popover h3{font-size:15px;margin-right:18px}.client-popover.login-popover p{font-size:12px}.account-summary{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px}.account-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.78);color:#2c2a28;font-size:13px;font-weight:600}.account-chip.trial{background:#e2f5ea;color:var(--good);border-color:rgba(37,122,80,.18)}@keyframes clientPopoverIn{from{opacity:0;transform:translateY(-10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes clientPopoverOut{to{opacity:0;transform:translateY(-10px) scale(.98);pointer-events:none}}.project-card{position:relative;overflow:hidden}.project-card:before{content:'';position:absolute;inset:0 0 auto;height:8px;background:var(--project-gradient,linear-gradient(90deg,#111,#4a90d9))}.project-card .card-body{padding-top:8px}.create-project-tile{width:100%;min-height:160px;display:grid;place-items:center;border:1px dashed rgba(20,20,20,.22);background:rgba(255,255,255,.54);border-radius:22px;color:#111;font-size:20px;cursor:pointer}.create-project-tile:hover{background:#fff;text-decoration:none}.project-modal{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:22px;background:rgba(5,5,5,.58);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .2s ease}.project-modal.open{opacity:1;pointer-events:auto}.project-modal-card{position:relative;max-width:860px;width:min(860px,100%);max-height:min(86vh,900px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:28px;padding:24px;box-shadow:0 30px 100px rgba(0,0,0,.24);transform:translateY(16px) scale(.98);transition:transform .2s ease}.project-modal.open .project-modal-card{transform:none}.modal-close{position:absolute;right:16px;top:14px;border:0;background:#f5f1e9;border-radius:999px;width:34px;height:34px;font-size:21px;cursor:pointer}.mini-chart{display:flex;align-items:end;gap:8px;height:98px;padding:14px;border-radius:18px;background:rgba(255,255,255,.55);border:1px solid var(--line)}.mini-chart span{display:block;flex:1;min-width:10px;border-radius:9px 9px 3px 3px;background:linear-gradient(180deg,#7b5cff,#1f5f94);height:var(--h,12%)}.soft-panel{background:linear-gradient(135deg,rgba(123,92,255,.11),rgba(74,144,217,.12));border:1px solid rgba(88,72,180,.16);border-radius:24px;padding:18px}.swatches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.swatch{border-radius:14px;padding:10px 8px;background:var(--g);color:#fff;font-size:12px;font-weight:600;text-align:center}.danger{border-left-color:#bd3f3f;background:rgba(255,235,235,.7);color:#713333}.ok{border-left-color:#268454;background:rgba(226,245,234,.7);color:#225c3d}.portal-profile-menu form button{padding:10px 12px!important;min-height:auto!important;line-height:1.2}.logout-chip{border:1px solid var(--line)!important;background:rgba(255,255,255,.78)!important;color:#2c2a28!important;border-radius:999px!important;padding:8px 10px!important;font-size:13px!important;line-height:1.2!important}.profile-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.setup-tour-card{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(17,17,17,.92),rgba(74,144,217,.76));color:#fff;border-radius:28px;padding:22px;box-shadow:0 24px 76px rgba(20,20,20,.18)}.setup-tour-card:before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 16% 15%,rgba(255,255,255,.22),transparent 32%);pointer-events:none}.setup-tour-card>*{position:relative}.setup-tour-card .muted{color:rgba(255,255,255,.76)}.setup-step{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:16px}.setup-step h3{margin-top:0}.setup-focus{box-shadow:0 0 0 5px rgba(74,144,217,.18),0 18px 55px rgba(74,144,217,.18)!important}.settings-panel{scroll-margin-top:90px}.settings-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.settings-form-grid .full{grid-column:1/-1}@media(max-width:760px){.settings-form-grid{grid-template-columns:1fr}.setup-tour-card{padding:18px;border-radius:22px}}@media(max-width:900px){.grid.cols4,.grid.cols3,.split,.row{grid-template-columns:1fr}.top-inner{align-items:flex-start;flex-direction:column;padding-top:14px;padding-bottom:14px}.portal-logo{min-width:auto}.wrap{margin:22px auto}.title{font-size:24px}}.top :where(.brand,.nav a,.nav button),.btn,label,.pill,.swatch,.table th,.kpi .num,.client-popover h3,.notice,strong,b{font-weight:600!important}.title,h1,h2,h3{font-weight:700}
 ${portalResponsiveCss()}
 </style></head><body>
-<header class="top"><div class="top-inner"><a class="portal-logo" href="/"><img src="/icon.png" alt="" aria-hidden="true"><span>AdProof</span></a><nav class="nav"><a href="${homeHref}">Home</a><a href="${dashboardHref}">Dashboard</a><a href="${securityHref}">Security</a><a href="${docsHref}">Docs</a>${profileMenu}</nav></div></header>
-<main class="wrap">${body}</main></body></html>`;
+<header class="top"><div class="top-inner"><a class="portal-logo" href="/"><img src="/icon.png" alt="" aria-hidden="true"><span>AdProof</span></a><nav class="nav">${navLinks}${profileMenu}</nav></div></header>
+<main class="wrap">${body}</main>${portalProfileOverlayScript()}</body></html>`;
 }
 
-function loginPage(message = '') {
-  return appShell('Admin login', `<div class="split"><section class="card"><h1 class="title">Owner dashboard login</h1><p class="lead">This is the private owner dashboard for companies, projects, integration keys, events and analytics.</p>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/admin/login"><div class="field"><label>Email</label><input name="email" value="${esc(ADMIN_EMAIL)}" autocomplete="username"></div><div class="field"><label>Password</label><input name="password" type="password" autocomplete="current-password" placeholder="${ADMIN_PASSWORD === 'admin123' ? 'admin123' : 'Your password'}"></div><div class="field"><label>TOTP MFA code, if enabled</label><input name="mfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"></div><button class="btn blue">Login</button></form></section><aside class="card"><h2>For beta testing</h2><p class="muted">A demo project is created by default. After login, the owner can create projects for beta companies, issue install snippets and review events.</p><pre>ADMIN_EMAIL=${esc(ADMIN_EMAIL)}\nADMIN_PASSWORD=${ADMIN_PASSWORD === 'admin123' ? 'admin123' : 'from environment variable'}</pre></aside></div>`);
+function loginPage(message = '', opts = {}) {
+  const mfaOverlay = opts.mfaRequired ? `<div class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="admin-mfa-title"><section class="auth-card auth-modal-card"><h2 id="admin-mfa-title" class="title">Authenticator verification</h2><p class="lead auth-lead">Enter the 6-digit code from your authenticator app to complete login.</p>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/admin/login/mfa"><div class="auth-field"><label>Authenticator code</label><input name="mfaCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456" required autofocus oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"></div><button class="btn blue" style="width:100%">Verify and login</button></form><p class="auth-centered-note"><a href="/admin/login">Cancel</a></p></section></div>` : '';
+  return appShell('Admin login', `<div class="split"><section class="card"><h1 class="title">Owner dashboard login</h1><p class="lead">This is the private owner dashboard for companies, projects, integration keys, events and analytics.</p>${(!opts.mfaRequired && message) ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/admin/login"><div class="field"><label>Email</label><input name="email" value="${esc(ADMIN_EMAIL)}" autocomplete="username"></div><div class="field"><label>Password</label><input name="password" type="password" autocomplete="current-password" placeholder="${ADMIN_PASSWORD === 'admin123' ? 'admin123' : 'Your password'}"></div><button class="btn blue">Login</button></form></section><aside class="card"><h2>For beta testing</h2><p class="muted">A demo project is created by default. After login, the owner can create projects for beta companies, issue install snippets and review events.</p><pre>ADMIN_EMAIL=${esc(ADMIN_EMAIL)}\nADMIN_PASSWORD=${ADMIN_PASSWORD === 'admin123' ? 'admin123' : 'from environment variable'}</pre></aside></div>${mfaOverlay}`);
 }
 
 function clientCookieAttrs() { return `Path=/; HttpOnly; SameSite=Lax${(USE_HTTPS || APP_ENV === 'production') ? '; Secure' : ''}`; }
+function mfaCookieAttrs() { return `Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.ceil(CLIENT_MFA_CHALLENGE_TTL / 1000)}${(USE_HTTPS || APP_ENV === 'production') ? '; Secure' : ''}`; }
+function clearClientMfaCookie() { return `${CLIENT_MFA_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${(USE_HTTPS || APP_ENV === 'production') ? '; Secure' : ''}`; }
+function clearAdminMfaCookie() { return `${ADMIN_MFA_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${(USE_HTTPS || APP_ENV === 'production') ? '; Secure' : ''}`; }
 function clientCsrfInput(client) { return client?.csrfToken ? `<input type="hidden" name="csrf" value="${esc(client.csrfToken)}">` : ''; }
 async function clientFromSession(req) {
   const sid = parseCookies(req.headers.cookie || '')[CLIENT_COOKIE];
@@ -2485,14 +2857,74 @@ function httpsJsonGet(url, bearerToken) {
     req.on('error', reject); req.end();
   });
 }
-async function findOrCreateGoogleAccount(profile) {
+function googleProfileToSignup(profile = {}) {
   const email = normalizeEmail(profile.email || '').slice(0, 160);
   if (!emailLooksValid(email)) throw new Error('google_email_missing');
-  const lookup = await findClientAccountByEmailDetailed(email);
+  const name = clamp(profile.name || profile.given_name || email.split('@')[0], 120);
+  return { email, name, verifiedEmail: profile.verified_email !== false };
+}
+function cleanExpiredGoogleSignupTokens() {
+  const t = now();
+  for (const [key, rec] of googleSignupTokens.entries()) if (!rec || rec.expiresAt < t) googleSignupTokens.delete(key);
+}
+function saveGoogleSignupToken(profile) {
+  cleanExpiredGoogleSignupTokens();
+  const payload = googleProfileToSignup(profile);
+  const token = randomId('gsp', 24);
+  googleSignupTokens.set(sha256(token), { profile: payload, createdAt: now(), expiresAt: now() + OAUTH_STATE_TTL });
+  return { token, profile: payload };
+}
+function loadGoogleSignupToken(token) {
+  cleanExpiredGoogleSignupTokens();
+  const rec = googleSignupTokens.get(sha256(token || ''));
+  if (!rec || rec.expiresAt < now()) return null;
+  return rec;
+}
+function deleteGoogleSignupToken(token) { googleSignupTokens.delete(sha256(token || '')); }
+async function attachGoogleProviderToAccount(account, profile = {}) {
+  const normalized = normalizeEmail(account?.email || profile.email || '');
+  if (!account || !normalized) return account;
+  if (await ensureAppDbReady()) {
+    try {
+      await appDbPool.query(`UPDATE avp_client_accounts
+        SET provider = CASE
+              WHEN provider LIKE '%google%' THEN provider
+              WHEN provider LIKE '%password%' THEN provider || '+google'
+              ELSE provider || '+google'
+            END,
+            full_name = COALESCE(NULLIF($2,''), full_name),
+            email_verified = true,
+            updated_at = now()
+        WHERE id=$1`, [account.id, clamp(profile.name || account.fullName || '', 120)]);
+      return await findClientAccountByEmail(normalized) || account;
+    } catch (err) {
+      structuredLog('warn', 'google_oauth_existing_account_update_failed', { emailMasked: maskEmail(normalized), emailHash: emailHash(normalized), accountId: account.id, error: err.message });
+      return account;
+    }
+  }
+  if (!AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) {
+    const db = readAuthAccounts();
+    const idx = db.accounts.findIndex(a => accountMatchesEmail(a, normalized));
+    if (idx >= 0) {
+      const currentProvider = String(db.accounts[idx].provider || 'password');
+      db.accounts[idx].provider = currentProvider.includes('google') ? currentProvider : `${currentProvider}+google`;
+      db.accounts[idx].emailVerified = true;
+      db.accounts[idx].fullName = db.accounts[idx].fullName || clamp(profile.name || '', 120);
+      db.accounts[idx].updatedAt = iso();
+      db.updatedAt = iso();
+      writeAuthAccounts(db);
+      return db.accounts[idx];
+    }
+  }
+  return account;
+}
+async function prepareGoogleAccount(profile) {
+  const payload = googleProfileToSignup(profile);
+  const lookup = await findClientAccountByEmailDetailed(payload.email);
   if (AUTH_DEBUG_LOGS) {
     structuredLog('log', 'google_oauth_account_lookup', {
-      emailMasked: maskEmail(email),
-      emailHash: emailHash(email),
+      emailMasked: maskEmail(payload.email),
+      emailHash: emailHash(payload.email),
       found: Boolean(lookup.account),
       source: lookup.source,
       authDbFile: lookup.authDbFile,
@@ -2502,54 +2934,65 @@ async function findOrCreateGoogleAccount(profile) {
       appDb: appDbPublicStatus()
     });
   }
-  if (lookup.account) {
-    if (appDbReady && appDbPool && !String(lookup.account.provider || '').includes('google')) {
-      try {
-        await appDbPool.query(`UPDATE avp_client_accounts
-          SET provider = CASE WHEN provider LIKE '%google%' THEN provider ELSE provider || '+google' END,
-              full_name = COALESCE(NULLIF($2,''), full_name),
-              email_verified = true,
-              updated_at = now()
-          WHERE id=$1`, [lookup.account.id, clamp(profile.name || profile.given_name || '', 120)]);
-        const refreshed = await findClientAccountByEmail(email);
-        if (refreshed) return refreshed;
-      } catch (err) {
-        structuredLog('warn', 'google_oauth_existing_account_update_failed', { emailMasked: maskEmail(email), emailHash: emailHash(email), accountId: lookup.account.id, error: err.message });
-      }
-    }
-    return lookup.account;
+  if (lookup.account) return { account: await attachGoogleProviderToAccount(lookup.account, payload), needsPassword: false };
+  if (AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH && String(lookup.source || '').startsWith('postgres_required')) {
+    throw new Error(lookup.source === 'postgres_required_missing_database_url' ? 'app_db_required_missing_database_url' : 'app_db_required_but_not_connected');
   }
-  const name = clamp(profile.name || profile.given_name || email.split('@')[0], 120);
-  const account = { id: randomId('acct'), email, fullName: name, phone: '', companyName: name, password: passwordRecord(randomKey('oauth_pwd')), provider: 'google', role: 'client_owner', status: 'trial', planId: 'beta', marketingConsent: false, marketingConsentAt: '', emailVerified: profile.verified_email !== false, trialEndsAt: new Date(now() + 30 * 24 * 60 * 60 * 1000).toISOString(), createdAt: iso(), updatedAt: iso() };
+  const prepared = saveGoogleSignupToken(payload);
+  return { needsPassword: true, token: prepared.token, profile: prepared.profile };
+}
+async function createGooglePasswordAccount(profile, password) {
+  const payload = googleProfileToSignup(profile);
+  const existing = await findClientAccountByEmail(payload.email);
+  if (existing) return attachGoogleProviderToAccount(existing, payload);
+  const account = {
+    id: randomId('acct'),
+    email: payload.email,
+    fullName: payload.name,
+    phone: '',
+    companyName: payload.name,
+    password: passwordRecord(password),
+    provider: 'password+google',
+    role: 'client_owner',
+    status: 'trial',
+    planId: 'beta',
+    marketingConsent: false,
+    marketingConsentAt: '',
+    emailVerified: payload.verifiedEmail !== false,
+    trialEndsAt: new Date(now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: iso(),
+    updatedAt: iso()
+  };
   const saved = await createClientAccount(account);
-  if (!APP_DB_ENABLED) upsertJsonAuthMirrorAccount(saved || account, 'google_oauth_after_create');
-  if (AUTH_DEBUG_LOGS) {
-    const verify = await findClientAccountByEmailDetailed(email);
-    structuredLog('log', 'google_oauth_account_saved', {
-      emailMasked: maskEmail(email),
-      emailHash: emailHash(email),
-      accountId: saved.id,
-      provider: saved.provider,
-      storage: verify.source,
-      foundAfterSave: Boolean(verify.account),
-      authDbFile: verify.authDbFile,
-      authDbExists: verify.authDbExists,
-      accountCount: verify.accountCount,
-      appDb: appDbPublicStatus()
-    });
-  }
+  if (!APP_DB_ENABLED) upsertJsonAuthMirrorAccount(saved || account, 'google_oauth_password_after_create');
   return saved;
+}
+function passwordRulesHtml() {
+  return `<ul class="password-rules" aria-live="polite"><li data-rule="length">8–20 characters</li><li data-rule="letter">At least one letter</li><li data-rule="number">At least one number</li></ul>`;
+}
+function googlePasswordPage(token, profile = {}, message = '') {
+  const safeToken = esc(token || '');
+  const email = esc(profile.email || '');
+  const name = esc(profile.name || 'New account');
+  return publicAuthPage('Complete Google signup', `<div class="auth-overlay"><section class="auth-card auth-single auth-modal-card"><h2 class="title">Create password</h2><p class="lead auth-lead">Google confirmed <strong>${email}</strong>. Create a password so the same account can be opened with Google or with email/password.</p>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/auth/google/complete" novalidate data-password-confirm-form><input type="hidden" name="token" value="${safeToken}"><div class="auth-field" data-field="password"><label>Password</label><input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="8–20 characters">${passwordRulesHtml()}<div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="confirmPassword"><label>Confirm password</label><input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="Repeat password"><ul class="password-rules" aria-live="polite"><li data-rule="match">Passwords match</li></ul><div class="field-error" aria-live="polite"></div></div><button class="btn blue" style="width:100%">Create account</button></form><p class="muted auth-centered-note">${name}</p></section></div>${passwordChecklistScript()}`, 'login');
+}
+function passwordChecklistScript() {
+  return `<script>(function(){var form=document.querySelector('[data-password-confirm-form]');if(!form)return;function q(s){return form.querySelector(s)}function hasLetter(v){try{return /\\p{L}/u.test(v||'')}catch(e){return /[A-Za-zА-Яа-яЁёІіЇїЄєҐґ]/.test(v||'')}}function setRule(name,ok){var el=q('[data-rule="'+name+'"]');if(el)el.classList.toggle('ok',!!ok)}function validPassword(v){return v.length>=8&&v.length<=20&&hasLetter(v)&&/[0-9]/.test(v)&&!/(<|>|javascript:|on\\w+\\s*=)/i.test(v)}function errorBox(name){var box=form.querySelector('[data-field="'+name+'"]');return box&&box.querySelector('.field-error')}function passwordMessage(v){if(!v)return 'Password is required.';return validPassword(v)?'':'Password must be 8–20 characters and include at least one letter and one number.'}function setField(name,msg){var box=form.querySelector('[data-field="'+name+'"]'),err=errorBox(name);if(err)err.textContent=msg||'';if(box){box.classList.toggle('valid',!msg);box.classList.toggle('invalid',!!msg)}}function update(){var p=form.password.value,c=form.confirmPassword.value;setRule('length',p.length>=8&&p.length<=20);setRule('letter',hasLetter(p));setRule('number',/[0-9]/.test(p));setRule('match',!!c&&c===p);setField('password',passwordMessage(p));setField('confirmPassword',!c?'Confirm password is required.':(c!==p?'Passwords do not match.':''));return validPassword(p)&&c===p}['input','blur'].forEach(function(ev){form.password.addEventListener(ev,update);form.confirmPassword.addEventListener(ev,update)});form.addEventListener('submit',function(e){if(!update()){e.preventDefault();(form.querySelector('.invalid input')||form.password).focus();}});update();})();</script>`;
 }
 function publicHeader(active = '') {
   const nav = [
-    ['Home','/'], ['Product','/product.html'], ['AI','/ai.html'], ['Security','/security.html'], ['Pricing','/pricing.html'], ['Docs','/docs.html'], ['Blog','/blog.html']
+    ['Home','/'], ['Product','/product.html'], ['Security','/security.html'], ['Pricing','/pricing.html'], ['Docs','/docs.html']
   ].map(([label, href]) => `<a href="${href}" class="${active === label.toLowerCase() ? 'active' : ''}">${label}</a>`).join('');
-  return `<header class="site-header topbar"><div class="container nav-wrap"><a class="logo" href="/" aria-label="AdProof home"><img class="logo-icon" src="/icon.png" alt="" aria-hidden="true"><span class="logo-text">AdProof</span></a><button class="menu-toggle" type="button" data-menu-toggle aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button><nav class="nav" data-nav aria-label="Main navigation">${nav}<a href="/login" class="${active === 'login' ? 'active' : ''}">Login</a><a class="nav-cta" href="/register">Get access</a></nav></div></header>`;
+  const loginActive = active === 'login' ? ' active' : '';
+  return `<header class="site-header topbar"><div class="container nav-wrap"><a class="logo" href="/" aria-label="AdProof home"><img class="logo-icon" src="/icon.png" alt="" aria-hidden="true"><span class="logo-text">AdProof</span></a><button class="menu-toggle" type="button" data-menu-toggle aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button><nav class="nav" data-nav aria-label="Main navigation">${nav}<span class="public-auth-slot" data-public-auth data-login-active="${active === 'login' ? '1' : '0'}"><a href="/login" class="${loginActive.trim()}">Login</a><a class="nav-cta" href="/register">Get access</a></span></nav></div></header>`;
+}
+function publicFooterHtml() {
+  return `<footer class="site-footer"><div class="container"><div class="footer-grid"><div class="footer-section"><h4>Product</h4><a href="/product.html">Overview</a><a href="/pricing.html">Pricing</a><a href="/security.html">Security</a><span class="footer-disabled" aria-disabled="true">Documentation</span></div><div class="footer-section"><h4>Use cases</h4><span class="footer-disabled" aria-disabled="true">Publisher sites</span><span class="footer-disabled" aria-disabled="true">Protected content</span><span class="footer-disabled" aria-disabled="true">Visibility analytics</span><span class="footer-disabled" aria-disabled="true">Client portal</span></div><div class="footer-section"><h4>Resources</h4><a href="/docs.html">Integration docs</a><a href="/login">Client portal</a><a href="/support.html">Support</a><span class="footer-disabled footer-status" aria-disabled="true">System Status</span></div><div class="footer-section"><h4>Company</h4><a href="/about.html">About</a><a href="/terms.html">Terms of Use</a><a href="/privacy.html">Privacy Policy</a><a href="/register">Get access</a></div><img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true"></div><div class="footer-bottom"><span>© 2026 AdProof</span><span class="footer-legal-bottom"><a href="/terms.html">Terms of Use</a><a href="/privacy.html">Privacy Policy</a></span></div></div></footer>`;
 }
 function publicAuthPage(title, body, active = 'login') {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} — AdProof</title><link rel="stylesheet" href="/style.css"><style>
-  .auth-main{min-height:calc(100vh - 72px);padding:42px 0 58px;display:flex;align-items:center}.auth-shell{width:100%;display:flex;justify-content:center;align-items:center;padding:0 22px}.auth-single{width:100%;max-width:520px;margin:0 auto}.auth-card{background:rgba(255,255,255,.82);border:1px solid rgba(20,20,20,.1);border-radius:30px;padding:26px;box-shadow:0 24px 72px rgba(72,59,39,.12);backdrop-filter:blur(10px)}.auth-field{margin-bottom:15px}.auth-field label{display:block;font-size:13px;font-weight:600;margin:0 0 7px;color:#1a1a1a}.auth-field input{width:100%;border:1px solid rgba(20,20,20,.1);border-radius:16px;padding:12px 13px;background:rgba(255,255,255,.88);font:inherit}.auth-help{display:block;margin-top:6px;color:#766f66;font-size:12px;line-height:1.45}.notice{border-left:4px solid #4a90d9;background:rgba(223,240,255,.55);padding:13px 15px;border-radius:14px;color:#244d6b;line-height:1.55}.notice.danger{border-left-color:#bd3f3f;background:rgba(255,235,235,.75);color:#713333}.google-btn{width:100%;min-height:46px;justify-content:center;margin-top:0}.Button-content{display:inline-flex;align-items:center;justify-content:center;gap:10px}.Button-visual{display:inline-grid;place-items:center;width:18px;height:18px}.Button-label{line-height:1}.auth-divider{display:flex;align-items:center;gap:12px;margin:12px 0;color:#766f66;font-size:12px}.auth-divider:before,.auth-divider:after{content:"";height:1px;flex:1;background:rgba(20,20,20,.1)}.auth-centered-note{text-align:center;margin:18px 0 0}.auth-card :where(p,a,span,label,input,button,small,strong,b,li,pre,code){font-weight:600}.auth-card h1,.auth-card h2,.auth-card h3{font-weight:700}.auth-card .title{margin-bottom:10px}.auth-lead{line-height:1.3}.auth-forgot{text-align:center;margin:10px 0 0}.auth-forgot a{font-size:13px;color:#236ca8}.auth-card .lead{margin-bottom:18px}.auth-check{display:flex;align-items:flex-start;gap:10px;margin:0 0 16px;font-size:13px;line-height:1.45;color:#504942}.auth-check input{width:auto;margin-top:3px;accent-color:var(--blue)}@media(max-width:900px){.auth-main{min-height:calc(100vh - 66px);padding:30px 0 48px}}
-  </style></head><body>${publicHeader(active)}<main class="site-main auth-main"><div class="auth-shell">${body}</div></main><script src="/app.js"></script></body></html>`;
+  return `<!doctype html><html class="auth-preload" lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} — AdProof</title><style id="adproof-auth-critical">html.auth-preload body > :not(.page-loader){display:none!important;}html.auth-preload body > .page-loader{display:grid!important;visibility:visible!important;opacity:1!important;}</style><script>try{console.log('[adproof-header] head-critical-active',{t:(performance&&performance.now)?performance.now().toFixed(1)+'ms':'n/a',path:location.pathname,htmlClass:document.documentElement.className});}catch(e){}</script><link rel="stylesheet" href="/style.css"><noscript><style>html.auth-preload body > *{display:revert!important;visibility:visible!important;opacity:1!important}</style></noscript><style>
+  .auth-main{min-height:calc(100vh - 72px);padding:42px 0 58px;display:flex;align-items:center}.auth-shell{width:100%;display:flex;justify-content:center;align-items:center;padding:0 22px}.auth-single{width:100%;max-width:520px;margin:0 auto}.auth-card{background:rgba(255,255,255,.82);border:1px solid rgba(20,20,20,.1);border-radius:30px;padding:26px;box-shadow:0 24px 72px rgba(72,59,39,.12);backdrop-filter:blur(10px)}.auth-field{margin-bottom:15px}.auth-field label{display:block;font-size:13px;font-weight:600;margin:0 0 7px;color:#1a1a1a}.auth-field input{width:100%;border:1px solid rgba(20,20,20,.1);border-radius:16px;padding:12px 13px;background:rgba(255,255,255,.88);font:inherit}.auth-help{display:block;margin-top:6px;color:#766f66;font-size:12px;line-height:1.45}.notice{border-left:4px solid #4a90d9;background:rgba(223,240,255,.55);padding:13px 15px;border-radius:14px;color:#244d6b;line-height:1.55}.notice.danger{border-left-color:#bd3f3f;background:rgba(255,235,235,.75);color:#713333}.google-btn{width:100%;min-height:46px;justify-content:center;margin-top:0}.Button-content{display:inline-flex;align-items:center;justify-content:center;gap:10px}.Button-visual{display:inline-grid;place-items:center;width:18px;height:18px}.Button-label{line-height:1}.auth-divider{display:flex;align-items:center;gap:12px;margin:12px 0;color:#766f66;font-size:12px}.auth-divider:before,.auth-divider:after{content:"";height:1px;flex:1;background:rgba(20,20,20,.1)}.auth-centered-note{text-align:center;margin:18px 0 0}.auth-card :where(p,a,span,label,input,button,small,strong,b,li,pre,code){font-weight:600}.auth-card h1,.auth-card h2,.auth-card h3{font-weight:700}.auth-card .title{margin-bottom:10px}.auth-lead{line-height:1.3}.auth-forgot{text-align:center;margin:10px 0 0}.auth-forgot a{font-size:13px;color:#236ca8}.auth-card .lead{margin-bottom:18px}.auth-check{display:flex;align-items:flex-start;gap:10px;margin:0 0 8px;font-size:13px;line-height:1.45;color:#504942}.auth-check input{width:auto;margin-top:3px;accent-color:var(--blue)}.auth-card form{display:grid;gap:6px}.auth-field,.auth-check{margin-bottom:0!important}.field-error-check{margin-top:-12px;margin-bottom:-10px}.field-error{min-height:0;margin:0;color:#bd3f3f;font-size:12px;font-weight:600}.auth-field.valid input{border-color:rgba(37,122,80,.42);box-shadow:0 0 0 3px rgba(37,122,80,.08)}.auth-field.valid label:after{content:' ✓';color:#257a50}.password-rules{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px;color:#766f66;font-size:12px}.password-rules li:before{content:'○';display:inline-block;width:18px;color:#9b9288}.password-rules li.ok{color:#257a50}.password-rules li.ok:before{content:'✓';color:#257a50}.auth-overlay{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:0!important;z-index:2000;display:flex!important;align-items:center!important;justify-content:center!important;background:rgba(0,0,0,.62);backdrop-filter:blur(7px);padding:22px;min-height:100dvh}.auth-modal-card{width:min(520px,100%);max-width:520px;background:rgba(255,255,255,.96);margin:0 auto!important;transform:translateY(-3vh)}@media(max-width:900px){.auth-main{min-height:calc(100vh - 66px);padding:30px 0 48px}}
+  </style></head><body>${publicHeader(active)}<main class="site-main auth-main"><div class="auth-shell">${body}</div></main>${publicFooterHtml()}<script src="/app.js"></script></body></html>`;
 }
 function googleButton(label = 'Continue with Google') {
   return `<a class="btn ghost google-btn" href="/auth/google/start" aria-label="${esc(label)}"><span class="Button-content"><span class="Button-visual Button-leadingVisual"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16"><g clip-path="url(#google-g)"><path d="M8.00018 3.16667C9.18018 3.16667 10.2368 3.57333 11.0702 4.36667L13.3535 2.08333C11.9668 0.793333 10.1568 0 8.00018 0C4.87352 0 2.17018 1.79333 0.853516 4.40667L3.51352 6.47C4.14352 4.57333 5.91352 3.16667 8.00018 3.16667Z" fill="#EA4335"/><path d="M15.66 8.18335C15.66 7.66002 15.61 7.15335 15.5333 6.66669H8V9.67335H12.3133C12.12 10.66 11.56 11.5 10.72 12.0667L13.2967 14.0667C14.8 12.6734 15.66 10.6134 15.66 8.18335Z" fill="#4285F4"/><path d="M3.51 9.53001C3.35 9.04668 3.25667 8.53334 3.25667 8.00001C3.25667 7.46668 3.34667 6.95334 3.51 6.47001L0.85 4.40668C0.306667 5.48668 0 6.70668 0 8.00001C0 9.29334 0.306667 10.5133 0.853333 11.5933L3.51 9.53001Z" fill="#FBBC05"/><path d="M8.0001 16C10.1601 16 11.9768 15.29 13.2968 14.0633L10.7201 12.0633C10.0034 12.5467 9.0801 12.83 8.0001 12.83C5.91343 12.83 4.14343 11.4233 3.5101 9.52667L0.850098 11.59C2.1701 14.2067 4.87343 16 8.0001 16Z" fill="#34A853"/></g><defs><clipPath id="google-g"><rect width="16" height="16" fill="white"/></clipPath></defs></svg></span><span class="Button-label">${esc(label)}</span></span></a>`;
@@ -2796,14 +3239,18 @@ function countryCallingOptions(selected = '+380') {
     return `<option value="${esc(code)}"${isSelected ? ' selected' : ''}>${esc(name)} (${esc(code)})</option>`;
   }).join('');
 }
-function registerPage(message = '', values = {}) {
-  const marketingChecked = values.marketingConsent === 'on' || values.marketingConsent === true ? ' checked' : '';
-  const termsChecked = values.termsAccepted === 'on' || values.termsAccepted === true ? ' checked' : '';
-  const selectedCountry = values.countryCode || '+380';
-  return publicAuthPage('Create account', `<section class="auth-card auth-single"><h2 class="title">Create your account</h2>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/register" novalidate data-register-form><div class="auth-field" data-field="fullName"><label>Full name</label><input name="fullName" value="${esc(values.fullName || '')}" autocomplete="name" maxlength="255" required placeholder="Your Name"><small class="auth-help">Enter your first and last name.</small><div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="companyName"><label>Company name</label><input name="companyName" value="${esc(values.companyName || '')}" autocomplete="organization" minlength="2" maxlength="255" required placeholder="Example Media LLC"><small class="auth-help">2–255 characters.</small><div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="phone"><label>Phone number</label><div class="phone-row"><select name="countryCode" autocomplete="tel-country-code" required>${countryCallingOptions(selectedCountry)}</select><input name="phone" type="tel" value="${esc(values.phone || '')}" autocomplete="tel-national" inputmode="numeric" pattern="[0-9]+" maxlength="15" required placeholder="671234567" title="Digits only" data-digits-only onbeforeinput="if(event.data && /[^0-9]/.test(event.data)) event.preventDefault()" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,15)" onpaste="setTimeout(()=>{this.value=this.value.replace(/[^0-9]/g,'').slice(0,15)},0)"></div><small class="auth-help">Choose the country code and enter digits only.</small><div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="email"><label>Email</label><input name="email" value="${esc(values.email || '')}" autocomplete="email" minlength="5" maxlength="255" required placeholder="you@example.com"><small class="auth-help">Use a valid email address with @.</small><div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="password"><label>Password</label><input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="8–20 characters"><small class="auth-help">8–20 characters, at least one letter and one number.</small><div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="confirmPassword"><label>Confirm password</label><input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="Repeat password"><div class="field-error" aria-live="polite"></div></div><label class="auth-check" data-field="termsAccepted"><input type="checkbox" name="termsAccepted" required${termsChecked}> <span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a>.</span></label><div class="field-error field-error-check" data-error-for="termsAccepted" aria-live="polite"></div><label class="auth-check"><input type="checkbox" name="marketingConsent"${marketingChecked}> <span>I agree to receive product updates and beta onboarding emails.</span></label><button class="btn blue" style="width:100%">Create account</button></form><script>(function(){var form=document.querySelector('[data-register-form]');if(!form)return;var validators={fullName:function(){var v=form.fullName.value.trim();return v?'':'Full name is required.';},companyName:function(){var v=form.companyName.value.trim();if(!v)return 'Company name is required.';return v.length>=2&&v.length<=255?'':'Company name must be 2–255 characters.';},phone:function(){var v=form.phone.value.trim();if(!v)return 'Phone number is required.';if(/[^0-9]/.test(v))return 'Phone number must contain digits only.';return v.length>=4&&v.length<=15?'':'Phone number must contain 4–15 digits after the country code.';},email:function(){var v=form.email.value.trim();if(!v)return 'Email is required.';return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)?'':'Enter a valid email address with @.';},password:function(){var v=form.password.value;if(!v)return 'Password is required.';return v.length>=8&&v.length<=20&&/[A-Za-z]/.test(v)&&/[0-9]/.test(v)?'':'Password must be 8–20 characters and include at least one letter and one number.';},confirmPassword:function(){var v=form.confirmPassword.value;if(!v)return 'Confirm password is required.';return v===form.password.value?'':'Passwords do not match.';},termsAccepted:function(){return form.termsAccepted.checked?'':'You must accept the Terms of Use.';}};function fieldBox(name){return form.querySelector('[data-field="'+name+'"]');}function errorBox(name){return form.querySelector('[data-error-for="'+name+'"]')||(fieldBox(name)&&fieldBox(name).querySelector('.field-error'));}function setState(name,msg){var box=fieldBox(name),err=errorBox(name);if(err)err.textContent=msg||'';if(box){box.classList.toggle('invalid',!!msg);box.classList.toggle('valid',!msg);}return !msg;}function validate(name){return setState(name,validators[name]());}Object.keys(validators).forEach(function(name){var el=form[name];if(!el)return;var ev=el.type==='checkbox'?'change':'input';el.addEventListener(ev,function(){if(name==='phone')el.value=el.value.replace(/[^0-9]/g,'').slice(0,15);validate(name);if(name==='password'&&form.confirmPassword.value)validate('confirmPassword');});el.addEventListener('blur',function(){validate(name);});});form.addEventListener('submit',function(e){var ok=true;Object.keys(validators).forEach(function(name){if(!validate(name))ok=false;});if(!ok){e.preventDefault();var first=form.querySelector('.auth-field.invalid input,.auth-check.invalid input');if(first)first.focus();}});})();</script><div class="auth-divider">or</div>${googleButton('Continue with Google')}<p class="muted auth-centered-note">Already have an account? <a href="/login">Login</a>.</p></section>`, 'login');
+function emailInputAttrs(extra = '') {
+  return `type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="255" ${extra}`;
 }
-function clientLoginPage(message = '', values = {}, successMessage = '') {
-  return publicAuthPage('Login', `<section class="auth-card auth-single"><h2 class="title">Login</h2><p class="lead">Login to your account.</p>${successMessage ? `<p class="notice">${esc(successMessage)}</p>` : ''}${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/login"><div class="auth-field"><label>Email</label><input name="email" value="${esc(values.email || '')}" autocomplete="username" minlength="5" maxlength="255" required placeholder="you@example.com"></div><div class="auth-field"><label>Password</label><input name="password" type="password" autocomplete="current-password" maxlength="20" required placeholder="Your password"></div><button class="btn blue" style="width:100%">Login</button></form><p class="auth-forgot"><a href="/reset-password">Forgot password?</a></p><div class="auth-divider">or</div>${googleButton('Continue with Google')}<p class="muted auth-centered-note">No account yet? <a href="/register">Create account</a>.</p></section>`, 'login');
+function registerPage(message = '', values = {}) {
+  const termsChecked = values.termsAccepted ? ' checked' : '';
+  const marketingChecked = values.marketingConsent ? ' checked' : '';
+  const selectedCountry = cleanClientText(values.countryCode || '+380', 8);
+  return publicAuthPage('Create account', `<section class="auth-card auth-single"><h2 class="title">Create your account</h2>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/register" novalidate data-register-form><div class="auth-field" data-field="fullName"><label>Full name</label><input name="fullName" value="${esc(values.fullName || '')}" autocomplete="name" maxlength="255" required placeholder="Your Name"><small class="auth-help">Enter your first and last name.</small><div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="companyName"><label>Company name</label><input name="companyName" value="${esc(values.companyName || '')}" autocomplete="organization" minlength="2" maxlength="255" required placeholder="Example Media LLC"><small class="auth-help">2–255 characters.</small><div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="phone"><label>Phone number</label><div class="phone-row"><select name="countryCode" autocomplete="tel-country-code" required>${countryCallingOptions(selectedCountry)}</select><input name="phone" type="tel" value="${esc(values.phone || '')}" autocomplete="tel-national" inputmode="numeric" pattern="[0-9]+" maxlength="15" required placeholder="671234567" title="Digits only" data-digits-only onbeforeinput="if(event.data && /[^0-9]/.test(event.data)) event.preventDefault()" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,15)" onpaste="setTimeout(()=>{this.value=this.value.replace(/[^0-9]/g,'').slice(0,15)},0)"></div><small class="auth-help">Choose the country code and enter digits only.</small><div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="email"><label>Email</label><input name="email" value="${esc(values.email || '')}" ${emailInputAttrs('minlength="5" required placeholder="you@example.com"')}><div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="password"><label>Password</label><input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="8–20 characters">${passwordRulesHtml()}<div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="confirmPassword"><label>Confirm password</label><input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="Repeat password"><ul class="password-rules" aria-live="polite"><li data-rule="match">Passwords match</li></ul><div class="field-error" aria-live="polite"></div></div><label class="auth-check" data-field="termsAccepted"><input type="checkbox" name="termsAccepted" required${termsChecked}> <span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a>.</span></label><div class="field-error field-error-check" data-error-for="termsAccepted" aria-live="polite"></div><label class="auth-check"><input type="checkbox" name="marketingConsent"${marketingChecked}> <span>I agree to receive product updates and beta onboarding emails.</span></label><button class="btn blue" style="width:100%">Create account</button></form><script>(function(){var form=document.querySelector('[data-register-form]');if(!form)return;function hasLetter(v){try{return /\\p{L}/u.test(v||'')}catch(e){return /[A-Za-zА-Яа-яЁёІіЇїЄєҐґ]/.test(v||'')}}function hasHtml(v){return /(<|>|javascript:|on\\w+\\s*=)/i.test(v||'')}var validators={fullName:function(){var v=form.fullName.value.trim();if(!v)return 'Full name is required.';return v.length<=255&&!hasHtml(v)?'':'Enter your full name.'},companyName:function(){var v=form.companyName.value.trim();if(!v)return 'Company name is required.';return v.length>=2&&v.length<=255&&!hasHtml(v)?'':'Company name must be 2–255 characters.';},phone:function(){var v=form.phone.value.trim();if(!v)return 'Phone number is required.';if(/[^0-9]/.test(v))return 'Phone number must contain digits only.';return v.length>=4&&v.length<=15?'':'Phone number must contain 4–15 digits after the country code.';},email:function(){var v=form.email.value.trim();if(!v)return 'Email is required.';return v.length<=255&&!hasHtml(v)&&/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(v)?'':'Please enter a valid email address.';},password:function(){var v=form.password.value;if(!v)return 'Password is required.';return v.length>=8&&v.length<=20&&hasLetter(v)&&/[0-9]/.test(v)&&!hasHtml(v)?'':'Password must be 8–20 characters and include at least one letter and one number.';},confirmPassword:function(){var v=form.confirmPassword.value;if(!v)return 'Confirm password is required.';return v===form.password.value?'':'Passwords do not match.';},termsAccepted:function(){return form.termsAccepted.checked?'':'You must accept the Terms of Use.';}};function fieldBox(name){return form.querySelector('[data-field="'+name+'"]');}function errorBox(name){return form.querySelector('[data-error-for="'+name+'"]')||(fieldBox(name)&&fieldBox(name).querySelector('.field-error'));}function setRule(rule,ok){var el=form.querySelector('[data-rule="'+rule+'"]');if(el)el.classList.toggle('ok',!!ok);}function updatePasswordRules(){var p=form.password.value,c=form.confirmPassword.value;setRule('length',p.length>=8&&p.length<=20);setRule('letter',hasLetter(p));setRule('number',/[0-9]/.test(p));setRule('match',!!c&&c===p);}function setState(name,msg){var box=fieldBox(name),err=errorBox(name);if(err)err.textContent=msg||'';if(box){box.classList.toggle('invalid',!!msg);box.classList.toggle('valid',!msg);}updatePasswordRules();return !msg;}function validate(name){return setState(name,validators[name]());}Object.keys(validators).forEach(function(name){var el=form[name];if(!el)return;var ev=el.type==='checkbox'?'change':'input';el.addEventListener(ev,function(){if(name==='phone')el.value=el.value.replace(/[^0-9]/g,'').slice(0,15);if(name==='email')el.value=el.value.trim();validate(name);if(name==='password'&&form.confirmPassword.value)validate('confirmPassword');});el.addEventListener('blur',function(){if(name==='email')el.value=el.value.trim();validate(name);});});form.addEventListener('submit',function(e){var ok=true;Object.keys(validators).forEach(function(name){if(!validate(name))ok=false;});if(!ok){e.preventDefault();var first=form.querySelector('.auth-field.invalid input,.auth-check.invalid input');if(first)first.focus();}});})();</script><div class="auth-divider">or</div>${googleButton('Continue with Google')}<p class="muted auth-centered-note">Already have an account? <a href="/login">Login</a>.</p></section>`, 'login');
+}
+function clientLoginPage(message = '', values = {}, successMessage = '', opts = {}) {
+  const mfaOverlay = opts.mfaRequired ? `<div class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="client-mfa-title"><section class="auth-card auth-modal-card"><h2 id="client-mfa-title" class="title">Authenticator verification</h2><p class="lead auth-lead">Enter the 6-digit code from your authenticator app to complete login.</p>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/login/mfa" novalidate><div class="auth-field"><label>Authenticator code</label><input name="mfaCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456" required autofocus oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"></div><button class="btn blue" style="width:100%">Verify and login</button></form><p class="auth-centered-note"><a href="/login">Cancel</a></p></section></div>` : '';
+  return publicAuthPage('Login', `<section class="auth-card auth-single"><h2 class="title">Login</h2><p class="lead">Login to your account.</p>${successMessage ? `<p class="notice">${esc(successMessage)}</p>` : ''}${(!opts.mfaRequired && message) ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/login" novalidate><div class="auth-field"><label>Email</label><input name="email" value="${esc(values.email || '')}" ${emailInputAttrs('minlength="5" required placeholder="you@example.com"')}></div><div class="auth-field"><label>Password</label><input name="password" type="password" autocomplete="current-password" maxlength="20" required placeholder="Your password"></div><button class="btn blue" style="width:100%">Login</button></form><p class="auth-forgot"><a href="/reset-password">Forgot password?</a></p><div class="auth-divider">or</div>${googleButton('Continue with Google')}<p class="muted auth-centered-note">No account yet? <a href="/register">Create account</a>.</p></section>${mfaOverlay}`, 'login');
 }
 
 function resetPasswordPage(message = '', values = {}, ok = false) {
@@ -2811,10 +3258,10 @@ function resetPasswordPage(message = '', values = {}, ok = false) {
     const successMessage = message || 'A one-time reset link was sent.';
     return publicAuthPage('Reset link sent', `<section class="auth-card auth-single"><h2 class="title">${esc(successMessage)}</h2><p class="muted auth-centered-note"><a href="/login">Back to login</a></p></section>`, 'login');
   }
-  return publicAuthPage('Reset password', `<section class="auth-card auth-single"><h2 class="title">Reset password</h2><p class="lead auth-lead">Enter your account email and we will send a one-time reset link.</p>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/reset-password" novalidate><div class="auth-field"><label>Email</label><input name="email" value="${esc(values.email || '')}" autocomplete="email" minlength="5" maxlength="255" required placeholder="you@example.com"><small class="auth-help">Use a valid email address with @.</small></div><button class="btn blue" style="width:100%">Send reset link</button></form><p class="muted auth-centered-note">Remembered it? <a href="/login">Login</a>.</p></section>`, 'login');
+  return publicAuthPage('Reset password', `<section class="auth-card auth-single"><h2 class="title">Reset password</h2><p class="lead auth-lead">Enter your account email and we will send a one-time reset link.</p>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/reset-password" novalidate><div class="auth-field"><label>Email</label><input name="email" value="${esc(values.email || '')}" ${emailInputAttrs('minlength="5" required placeholder="you@example.com"')}></div><button class="btn blue" style="width:100%">Send reset link</button></form><p class="muted auth-centered-note">Remembered it? <a href="/login">Login</a>.</p></section>`, 'login');
 }
 function newPasswordPage(token, message = '', values = {}) {
-  return publicAuthPage('Create new password', `<section class="auth-card auth-single"><h2 class="title">Create new password</h2><p class="lead auth-lead">Enter and confirm your new account password.</p>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/reset-password/${esc(token)}" novalidate><div class="auth-field"><label>New password</label><input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="8–20 characters"><small class="auth-help">8–20 characters, at least one letter and one number.</small></div><div class="auth-field"><label>Confirm password</label><input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="Repeat new password"></div><button class="btn blue" style="width:100%">Update password</button></form><p class="muted auth-centered-note"><a href="/login">Back to login</a></p></section>`, 'login');
+  return publicAuthPage('Create new password', `<section class="auth-card auth-single"><h2 class="title">Create new password</h2><p class="lead auth-lead">Enter and confirm your new account password.</p>${message ? `<p class="notice danger">${esc(message)}</p>` : ''}<form method="post" action="/reset-password/${esc(token)}" novalidate data-password-confirm-form><div class="auth-field" data-field="password"><label>New password</label><input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="8–20 characters">${passwordRulesHtml()}<div class="field-error" aria-live="polite"></div></div><div class="auth-field" data-field="confirmPassword"><label>Confirm password</label><input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="20" required placeholder="Repeat new password"><ul class="password-rules" aria-live="polite"><li data-rule="match">Passwords match</li></ul><div class="field-error" aria-live="polite"></div></div><button class="btn blue" style="width:100%">Update password</button></form><p class="muted auth-centered-note"><a href="/login">Back to login</a></p></section>${passwordChecklistScript()}`, 'login');
 }
 
 function chartBars(values) {
@@ -2975,7 +3422,7 @@ function fullAnalyticsSvgChart(buckets = [], view = 'count') {
 function analyticsControls(action, period, view) {
   const p = analyticsPeriod(period);
   const v = analyticsView(view);
-  return `<form method="get" action="${esc(action)}" class="full-controls"><div class="field"><label>View</label><select name="view"><option value="count" ${v==='count'?'selected':''}>Count</option><option value="percent" ${v==='percent'?'selected':''}>Percent</option></select></div><div class="field"><label>Period</label><select name="period"><option value="today" ${p==='today'?'selected':''}>Today</option><option value="week" ${p==='week'?'selected':''}>Week</option><option value="month" ${p==='month'?'selected':''}>Month</option><option value="all" ${p==='all'?'selected':''}>All time</option></select></div><button class="btn blue">Apply</button></form>`;
+  return `<form method="get" action="${esc(action)}" class="full-controls"><div class="field"><select name="view" aria-label="View"><option value="count" ${v==='count'?'selected':''}>Count</option><option value="percent" ${v==='percent'?'selected':''}>Percent</option></select></div><div class="field"><select name="period" aria-label="Period"><option value="today" ${p==='today'?'selected':''}>Today</option><option value="week" ${p==='week'?'selected':''}>Week</option><option value="month" ${p==='month'?'selected':''}>Month</option><option value="all" ${p==='all'?'selected':''}>All time</option></select></div><button class="btn blue">Apply</button></form>`;
 }
 async function clientProjectFullViewPage(client, project, opts = {}) {
   const period = analyticsPeriod(opts.period || 'today');
@@ -2989,12 +3436,8 @@ async function clientProjectFullViewPage(client, project, opts = {}) {
   const bucketRows = analyticsBucketRows(analytics.buckets || [], period);
   const breakdownTitle = period === 'today' ? 'Hourly breakdown' : 'Daily breakdown';
   const analyticsHref = `/account/projects/${encodeURIComponent(project.id)}/analytics`;
-  const sourceClass = analytics.source === 'postgres' ? 'ok' : 'muted';
-  const sourceNote = analytics.source === 'postgres'
-    ? `Source: PostgreSQL · table <code>avp_events</code>`
-    : `Source: local fallback · connect DATABASE_URL for remote DB`;
-  const dbNotice = `<p class="analytics-source ${sourceClass}">${sourceNote}</p>`;
-  const css = `<style>.analytics-page{max-width:1180px;margin:0 auto}.analytics-page-narrow{max-width:1040px}.analytics-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(223,240,255,.55));border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 20px 70px rgba(72,59,39,.08)}.analytics-hero .title{font-size:30px;line-height:1.16}.analytics-hero .lead{max-width:760px}.analytics-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.full-controls{display:grid;grid-template-columns:minmax(0,220px) minmax(0,220px) auto;gap:14px;align-items:end}.analytics-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.analytics-kpi{min-height:132px}.analytics-kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}.analytics-kpi .num{font-size:34px;font-weight:600;letter-spacing:-1px;margin:7px 0}.full-chart{padding:16px;border:1px solid var(--line);border-radius:22px;background:rgba(255,255,255,.7);overflow:hidden}.full-chart svg{width:100%;height:auto;display:block}.chart-legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin:8px 0 0}.chart-legend span{display:inline-flex;align-items:center;gap:7px}.chart-legend i{width:26px;height:4px;border-radius:99px;background:#236ca8;display:inline-block}.chart-legend i.violet{background:#7b5cff}.analytics-source{display:inline-flex;align-items:center;gap:8px;font-size:13px;line-height:1.5;margin:12px 0 0;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.62);border:1px solid var(--line)}.analytics-source.ok{color:var(--good);background:rgba(226,245,234,.72)}.analytics-source.muted{color:var(--muted)}.analytics-source code{font-size:12px}.domain-card table td:nth-child(n+2),.domain-card table th:nth-child(n+2),.breakdown-card table td:nth-child(n+2),.breakdown-card table th:nth-child(n+2){text-align:right}.project-code{font-size:12px}.analytics-page p,.analytics-page td{font-weight:400}.analytics-page a,.analytics-page label,.analytics-page button,.analytics-page .pill,.analytics-page .account-chip,.analytics-page .num{font-weight:600}.analytics-page h1,.analytics-page h2,.analytics-page h3{font-weight:700}@media(max-width:900px){.analytics-page{max-width:100%}.full-controls,.analytics-kpis{grid-template-columns:1fr}.analytics-kpi .num{font-size:30px}}</style>`;
+  const dbNotice = '';
+  const css = `<style>.analytics-page{max-width:1180px;margin:0 auto}.analytics-page-narrow{max-width:1040px}.analytics-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(223,240,255,.55));border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 20px 70px rgba(72,59,39,.08)}.analytics-hero .title{font-size:30px;line-height:1.16}.analytics-hero .lead{max-width:760px}.analytics-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.full-controls{display:grid;grid-template-columns:minmax(0,220px) minmax(0,220px) auto;gap:14px;align-items:center}.analytics-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.analytics-kpi{min-height:132px}.analytics-kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}.analytics-kpi .num{font-size:34px;font-weight:600;letter-spacing:-1px;margin:7px 0}.full-chart{padding:16px;border:1px solid var(--line);border-radius:22px;background:rgba(255,255,255,.7);overflow:hidden}.full-chart svg{width:100%;height:auto;display:block}.chart-legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin:8px 0 0}.chart-legend span{display:inline-flex;align-items:center;gap:7px}.chart-legend i{width:26px;height:4px;border-radius:99px;background:#236ca8;display:inline-block}.chart-legend i.violet{background:#7b5cff}.full-controls .field{margin-bottom:0}.full-controls .btn{height:46px}.analytics-source{display:none}.analytics-source.ok{color:var(--good);background:rgba(226,245,234,.72)}.analytics-source.muted{color:var(--muted)}.analytics-source code{font-size:12px}.domain-card table td:nth-child(n+2),.domain-card table th:nth-child(n+2),.breakdown-card table td:nth-child(n+2),.breakdown-card table th:nth-child(n+2){text-align:right}.project-code{font-size:12px}.analytics-page p,.analytics-page td{font-weight:400}.analytics-page a,.analytics-page label,.analytics-page button,.analytics-page .pill,.analytics-page .account-chip,.analytics-page .num{font-weight:600}.analytics-page h1,.analytics-page h2,.analytics-page h3{font-weight:700}@media(max-width:900px){.analytics-page{max-width:100%}.full-controls,.analytics-kpis{grid-template-columns:1fr}.analytics-kpi .num{font-size:30px}}</style>`;
   return appShell('Analytics', `${css}<div class="analytics-page"><section class="analytics-hero"><p><a href="/account">← Back to account</a></p><h1 class="title">Analytics</h1><p class="lead muted">${esc(project.name)} · overlay traffic, total visits, domain breakdown and project connection details.</p><div class="account-summary"><span class="account-chip">${esc(formatProjectDomains(project.allowedDomains || []))}</span><span class="account-chip">${esc(analyticsPeriodLabel(period))}</span><span class="account-chip">${view === 'percent' ? 'Percent view' : 'Count view'}</span></div><div class="analytics-actions"><a class="btn blue" href="/docs.html">Open integration docs</a></div>${dbNotice}</section><section class="card section">${analyticsControls(analyticsHref, period, view)}</section><section class="grid analytics-kpis section"><div class="card analytics-kpi"><div class="label">Overlay shown</div><div class="num">${overlayMain}</div><p class="muted">${fmtNumber(s.overlay)} overlay events · ${s.overlayRate}% of visits</p></div><div class="card analytics-kpi"><div class="label">Total traffic</div><div class="num">${trafficMain}</div><p class="muted">${fmtNumber(s.visits)} visits for ${esc(analyticsPeriodLabel(period).toLowerCase())}</p></div><div class="card analytics-kpi"><div class="label">Events</div><div class="num">${fmtNumber(s.events)}</div><p class="muted">${fmtNumber(s.unlocks || 0)} unlock events recorded</p></div></section><section class="card section"><h2>Trend</h2><p class="muted">Compare overlay volume with total traffic for the selected period.</p>${fullAnalyticsSvgChart(analytics.buckets, view)}</section><section class="card section breakdown-card"><h2>${breakdownTitle}</h2><p class="muted">The table shows exactly where overlay percentage is higher for the selected period.</p><table class="table"><thead><tr><th>Period</th><th>Visits</th><th>Overlay</th><th>Rate</th></tr></thead><tbody>${bucketRows}</tbody></table></section><section class="split section"><div class="card domain-card"><h2>Domains</h2><table class="table"><thead><tr><th>Domain</th><th>Visits</th><th>Overlay</th><th>Rate</th></tr></thead><tbody>${domainRows}</tbody></table></div><div class="card"><h2>Connection</h2><p><strong>Public key:</strong></p><pre class="project-code">${esc(project.publicKey)}</pre><p><strong>Install snippet:</strong></p><pre class="project-code">${esc(`<script src="${PUBLIC_BASE_URL}/sdk/${project.sdkVersion || DEFAULT_SDK_VERSION}/${project.publicKey}.js" async></script>`)}</pre><p class="muted">Allowed domains: ${esc(formatProjectDomains(project.allowedDomains || []))}</p></div></section></div>`, client);
 }
 function clientProjectGradient(project) {
@@ -3009,7 +3452,7 @@ function clientProjectGradient(project) {
 }
 function modalBlock(kind) {
   if (kind === 'login') return `<div class="client-popover login-popover" data-popover><button class="x" onclick="this.parentElement.remove()" aria-label="Close">×</button><h3>Login successful</h3><p>Client portal is ready.</p></div>`;
-  if (kind === 'registered') return `<div class="client-popover" data-popover><button class="x" onclick="this.parentElement.remove()" aria-label="Close">×</button><h3>Beta Trial activated</h3><p>Your free 1-month Beta Trial is active: 1 project and 500k checks included.</p></div>`;
+  if (kind === 'registered') return `<div class="client-popover login-popover" data-popover><button class="x" onclick="this.parentElement.remove()" aria-label="Close">×</button><h3>Login successful</h3><p>Account created. Client portal is ready.</p></div>`;
   if (kind === 'passwordReset') return `<div class="client-popover" data-popover><button class="x" onclick="this.parentElement.remove()" aria-label="Close">×</button><h3>Password updated</h3><p>You are logged in.</p></div>`;
   return '';
 }
@@ -3017,6 +3460,7 @@ async function projectAccountCard(project) {
   const analytics = await loadProjectAnalytics(project, 'today');
   const st = analytics.summary || { visits: 0, overlay: 0, overlayRate: 0 };
   const statusText = project.enabled === false ? 'paused' : 'active';
+  const statusLabel = statusText === 'active' ? 'Active' : 'Paused';
   const fullUrl = `/account/projects/${encodeURIComponent(project.id)}/analytics`;
   const snippet = `<script src="${PUBLIC_BASE_URL}/sdk/v1/${project.publicKey}.js" async></script>`;
   return `<article class="account-project-card" style="--project-gradient:${esc(clientProjectGradient(project))}">
@@ -3025,7 +3469,7 @@ async function projectAccountCard(project) {
         <h3>${esc(project.name)}</h3>
         <p class="project-domains">${esc(formatProjectDomains(project.allowedDomains || []))}</p>
       </div>
-      <div class="project-badges"><span class="pill ${statusText === 'active' ? 'good' : 'bad'}">${statusText}</span><span class="pill">${esc(planLabel(project.planId || 'beta'))}</span></div>
+      <div class="project-badges"><span class="pill ${statusText === 'active' ? 'good' : 'bad'}">${statusLabel}</span></div>
     </div>
     <pre class="project-install-snippet">${esc(snippet)}</pre>
     <div class="account-project-bottom">
@@ -3035,39 +3479,342 @@ async function projectAccountCard(project) {
   </article>`;
 }
 
+
+function clientMfaProfileScript() {
+  return `<script>
+(function(){
+  'use strict';
+  function log(){
+    try { console.debug.apply(console, ['[adproof-mfa]'].concat([].slice.call(arguments))); } catch (_) {}
+  }
+  function securityPanel(){ return document.getElementById('security'); }
+  function securityContent(){ var panel = securityPanel(); return panel ? panel.querySelector('.accordion-content') : null; }
+  function escAttr(value){
+    return String(value || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function csrfValue(scope){
+    var root = scope || securityPanel() || document;
+    var input = root.querySelector ? root.querySelector('input[name="csrf"]') : null;
+    if (!input) input = document.querySelector('input[name="csrf"]');
+    return input ? input.value : '';
+  }
+  function setLoading(panel, btn, on){
+    if (panel) panel.classList.toggle('is-loading', !!on);
+    if (btn) {
+      btn.disabled = !!on;
+      if (on) {
+        btn.setAttribute('aria-busy','true');
+        btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
+        btn.textContent = 'Generating…';
+      } else {
+        btn.removeAttribute('aria-busy');
+        btn.textContent = btn.dataset.originalText || 'Generate setup key';
+      }
+    }
+  }
+  function showError(message){
+    var target = securityContent();
+    if (!target) return;
+    var old = target.querySelector('[data-mfa-error]');
+    if (old) old.remove();
+    var n = document.createElement('p');
+    n.className = 'notice danger';
+    n.setAttribute('data-mfa-error','');
+    n.textContent = message || 'Could not generate MFA setup key. Keep the page open and try again.';
+    target.prepend(n);
+  }
+  function showSecretModal(secret){
+    var old = document.querySelector('.mfa-copy-modal');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.className = 'mfa-copy-modal';
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    var card = document.createElement('section');
+    card.className = 'mfa-copy-card';
+    card.innerHTML = '<h3>Copy your MFA setup key</h3><p class="muted">Add this key to an authenticator app now. After you close this pop-up, the key will not be shown on the page.</p><code class="mfa-copy-key"></code><p class="mfa-copy-note">If you close this without copying, generate a new setup key.</p><div class="mfa-copy-actions"><button type="button" class="btn blue" data-copy-mfa-key>Copy key</button><button type="button" class="btn ghost" data-close-mfa-key>Done</button></div>';
+    card.querySelector('.mfa-copy-key').textContent = secret;
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function(e){
+      if (e.target === overlay || e.target.closest('[data-close-mfa-key]')) { overlay.remove(); return; }
+      var copy = e.target.closest('[data-copy-mfa-key]');
+      if (!copy) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(secret).then(function(){
+          copy.textContent = 'Copied';
+          setTimeout(function(){ copy.textContent = 'Copy key'; }, 1300);
+        }).catch(function(){ copy.textContent = 'Select and copy'; });
+      } else {
+        copy.textContent = 'Select and copy';
+      }
+    });
+    document.body.appendChild(overlay);
+    var copyBtn = overlay.querySelector('[data-copy-mfa-key]');
+    if (copyBtn) copyBtn.focus();
+  }
+  function showDisableModal(csrf){
+    var old = document.querySelector('.mfa-disable-modal');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.className = 'mfa-copy-modal mfa-disable-modal';
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    var card = document.createElement('section');
+    card.className = 'mfa-copy-card mfa-disable-card';
+    card.innerHTML = '<h3>Disable MFA</h3><p class="muted" style="line-height:130%">Confirm your account password to disable authenticator protection.</p><form method="post" action="/account/security/mfa-disable" data-mfa-disable-form><input type="hidden" name="csrf" value="' + escAttr(csrf) + '"><div class="field" data-mfa-disable-field><label>Confirm password</label><input name="password" type="password" autocomplete="current-password" maxlength="20" required placeholder="Your password" aria-describedby="mfa-disable-error"><div class="field-error" id="mfa-disable-error" data-mfa-disable-error aria-live="polite"></div></div><div class="mfa-copy-actions"><button type="submit" class="btn blue" data-mfa-disable-submit>Confirm and disable</button><button type="button" class="btn ghost" data-close-mfa-disable>Cancel</button></div></form>';
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function(e){
+      if ((e.target === overlay || e.target.closest('[data-close-mfa-disable]')) && !overlay.classList.contains('is-submitting')) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+    var password = overlay.querySelector('input[name="password"]');
+    if (password) password.focus();
+  }
+  function setDisableError(form, message){
+    if (!form) return;
+    var error = form.querySelector('[data-mfa-disable-error]');
+    var field = form.querySelector('[data-mfa-disable-field]');
+    var input = form.querySelector('input[name="password"]');
+    if (error) error.textContent = message || '';
+    if (field) field.classList.toggle('has-error', !!message);
+    if (input) {
+      input.setAttribute('aria-invalid', message ? 'true' : 'false');
+      if (message) input.focus();
+    }
+  }
+  function setDisableSubmitting(form, on){
+    if (!form) return;
+    var overlay = form.closest('.mfa-disable-modal');
+    var btn = form.querySelector('[data-mfa-disable-submit]');
+    if (overlay) overlay.classList.toggle('is-submitting', !!on);
+    if (btn) {
+      btn.disabled = !!on;
+      btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
+      btn.textContent = on ? 'Checking…' : (btn.dataset.originalText || 'Confirm and disable');
+    }
+  }
+  function renderDisabledState(csrf, message){
+    var current = securityContent();
+    if (!current) return;
+    current.innerHTML = [
+      message ? '<p class="notice ok">' + escAttr(message) + '</p>' : '',
+      '<p>Status: <span class="pill warn">disabled</span></p>',
+      '<p class="muted mfa-setup-note">Generate a TOTP secret, add it to an authenticator app, then confirm the 6-digit code. After that, login will ask for MFA in a separate pop-up only after the password is accepted.</p>',
+      '<div class="mfa-generate-action" data-mfa-generate-action data-action="/account/security/mfa-generate"><input type="hidden" name="csrf" value="' + escAttr(csrf) + '"><button class="btn blue" type="button" data-mfa-generate-button onclick="return window.adproofMfaGenerateClick(event,this)">Generate TOTP secret</button></div>'
+    ].join('');
+    var sec = securityPanel();
+    if (sec) sec.setAttribute('open','');
+  }
+  function renderSetupState(csrf){
+    var current = securityContent();
+    if (!current) return;
+    current.innerHTML = [
+      '<p>Status: <span class="pill warn">disabled</span></p>',
+      '<p class="mfa-setup-note">A setup key has been generated. If you copied it into your authenticator app, enter the 6-digit code below. If you closed the setup pop-up before copying, generate a new setup key.</p>',
+      '<form method="post" action="/account/security/mfa-enable">',
+      '<input type="hidden" name="csrf" value="' + escAttr(csrf) + '">',
+      '<div class="field"><label>Authenticator code</label><input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456" required data-mfa-code-input></div>',
+      '<button class="btn blue">Enable MFA</button>',
+      '</form>',
+      '<div style="margin-top:12px"><div class="mfa-generate-action" data-mfa-generate-action data-action="/account/security/mfa-generate"><input type="hidden" name="csrf" value="' + escAttr(csrf) + '"><button class="btn blue" type="button" data-mfa-generate-button onclick="return window.adproofMfaGenerateClick(event,this)">Generate new setup key</button></div></div>'
+    ].join('');
+    var sec = securityPanel();
+    if (sec) sec.setAttribute('open','');
+  }
+  async function requestMfaSetupKey(button){
+    log('generate click');
+    var panel = securityPanel();
+    var holder = button && button.closest ? button.closest('[data-mfa-generate-action]') : null;
+    var action = (holder && holder.getAttribute('data-action')) || '/account/security/mfa-generate';
+    var csrfInput = holder ? holder.querySelector('input[name="csrf"]') : null;
+    var csrf = csrfInput ? csrfInput.value : csrfValue(panel || document);
+    if (!csrf) { showError('Session token is missing. Refresh the page and try again.'); return false; }
+    var body = new URLSearchParams();
+    body.set('csrf', csrf);
+    setLoading(panel, button, true);
+    try {
+      var res = await fetch(action, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'X-Requested-With': 'fetch',
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: body.toString()
+      });
+      var text = await res.text();
+      var data = null;
+      try { data = JSON.parse(text); } catch (_) {}
+      if (!res.ok || !data || !data.ok || !data.secret) {
+        log('generate failed', res.status, text.slice(0,160));
+        throw new Error(data && data.error ? data.error : 'request failed');
+      }
+      renderSetupState(csrf);
+      showSecretModal(data.secret);
+      var code = document.querySelector('[data-mfa-code-input]');
+      if (code) setTimeout(function(){ code.focus(); }, 50);
+      log('setup key generated');
+    } catch (err) {
+      console.error('[adproof-mfa] generate failed', err);
+      showError('Could not generate MFA setup key. Keep the page open and try again.');
+    } finally {
+      setLoading(panel, button, false);
+    }
+    return false;
+  }
+  window.adproofMfaGenerateClick = function(event, button){
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    requestMfaSetupKey(button || (event && event.target && event.target.closest('[data-mfa-generate-button]')));
+    return false;
+  };
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('[data-mfa-generate-button]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    requestMfaSetupKey(btn);
+  }, true);
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('[data-mfa-disable-open]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var holder = btn.closest('[data-mfa-disable-action]') || securityPanel() || document;
+    var csrf = csrfValue(holder);
+    if (!csrf) { showError('Session token is missing. Refresh the page and try again.'); return; }
+    showDisableModal(csrf);
+  }, true);
+  document.addEventListener('submit', function(e){
+    var form = e.target.closest && e.target.closest('[data-mfa-generate-form]');
+    if (!form) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var btn = form.querySelector('[data-mfa-generate-button]');
+    requestMfaSetupKey(btn);
+  }, true);
+  document.addEventListener('submit', async function(e){
+    var form = e.target.closest && e.target.closest('[data-mfa-disable-form]');
+    if (!form) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setDisableError(form, '');
+    var passwordInput = form.querySelector('input[name="password"]');
+    var password = passwordInput ? passwordInput.value : '';
+    if (!password) { setDisableError(form, 'Enter your current password.'); return; }
+    var body = new URLSearchParams(new FormData(form));
+    setDisableSubmitting(form, true);
+    try {
+      var res = await fetch(form.getAttribute('action') || '/account/security/mfa-disable', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'X-Requested-With': 'fetch',
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: body.toString()
+      });
+      var text = await res.text();
+      var data = null;
+      try { data = JSON.parse(text); } catch (_) {}
+      if (!res.ok || !data || !data.ok) {
+        setDisableError(form, (data && data.message) || 'Password is incorrect.');
+        return;
+      }
+      var overlay = form.closest('.mfa-disable-modal');
+      if (overlay) overlay.remove();
+      renderDisabledState(body.get('csrf') || csrfValue(document), data.message || 'MFA disabled successfully.');
+    } catch (err) {
+      console.error('[adproof-mfa] disable failed', err);
+      setDisableError(form, 'Could not check the password. Try again.');
+    } finally {
+      setDisableSubmitting(form, false);
+    }
+  }, true);
+  document.addEventListener('input', function(e){
+    var input = e.target.closest && e.target.closest('[data-mfa-code-input]');
+    if (!input) return;
+    input.value = input.value.replace(/[^0-9]/g,'').slice(0,6);
+  });
+  log('script ready');
+})();
+</script>`;
+}
+
+async function accountProfilePage(client, message = '', danger = '') {
+  const pending = client.pendingEmail && Date.parse(client.pendingEmailExpiresAt || '') > now();
+  const setupSecret = clientMfaSetupSecret(client);
+  const mfaEnabled = clientMfaEnabled(client);
+  const css = `<style>
+    .profile-page{max-width:720px;margin:0 auto}.profile-page .notice{margin:12px 0}.profile-page pre{max-height:130px;overflow:auto}.profile-accordion{display:grid;gap:14px;margin-top:18px}.settings-panel{scroll-margin-top:90px;background:rgba(255,255,255,.76)}.settings-panel summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:14px;cursor:pointer}.settings-panel summary::-webkit-details-marker{display:none}.settings-panel summary h2{margin:0}.settings-panel summary:after{content:'+';width:28px;height:28px;border-radius:50%;background:rgba(74,144,217,.12);display:grid;place-items:center;color:#236ca8;font-weight:700;transition:transform .18s ease}.settings-panel[open] summary:after{content:'–';transform:rotate(180deg)}.accordion-content{padding-top:16px;animation:accordionIn .22s ease both}.security-anchor{scroll-margin-top:88px}.settings-form-grid{display:grid;grid-template-columns:1fr;gap:8px;max-width:560px}.settings-form-grid .field{margin-bottom:0}.settings-form-grid .field input{margin-bottom:0}.settings-form-grid .full{grid-column:1/-1}.mfa-setup-note{font-size:13px;line-height:130%;color:var(--muted);max-width:66%;min-width:0}.mfa-loading-overlay{position:absolute;inset:0;border-radius:22px;background:rgba(255,255,255,.72);display:grid;place-items:center;z-index:3;backdrop-filter:blur(4px)}.mfa-loader{width:34px;height:34px;border-radius:50%;border:3px solid rgba(74,144,217,.18);border-top-color:#4a90d9;animation:mfaSpin .75s linear infinite}.settings-panel{position:relative}.settings-panel.is-loading{pointer-events:none}.settings-panel.is-loading:after{content:'';position:absolute;inset:0;border-radius:22px;background:rgba(255,255,255,.58);backdrop-filter:blur(3px)}.settings-panel.is-loading:before{content:'';position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid rgba(74,144,217,.18);border-top-color:#4a90d9;animation:mfaSpin .75s linear infinite;z-index:5}.mfa-copy-modal{position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(16,18,24,.46);backdrop-filter:blur(8px);animation:mfaFade .16s ease both}.mfa-copy-card{width:min(560px,100%);background:rgba(255,255,255,.98);border:1px solid rgba(20,20,20,.08);border-radius:24px;box-shadow:0 30px 90px rgba(0,0,0,.24);padding:24px}.mfa-copy-card h3{margin:0 0 8px;font-size:24px}.mfa-copy-card p{line-height:1.5}.mfa-copy-key{display:block;margin:14px 0;padding:14px 16px;border-radius:16px;background:#f6f2ea;border:1px solid rgba(20,20,20,.08);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;word-break:break-all}.mfa-copy-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.mfa-copy-actions .btn{min-height:42px}.mfa-copy-note{font-size:13px;color:var(--muted)}.mfa-disable-card .field{margin-bottom:8px}.mfa-disable-card .field-error{min-height:18px;margin-top:6px;color:#9f3434;font-size:12px;line-height:1.25}.mfa-disable-card .has-error input{border-color:rgba(159,52,52,.55);box-shadow:0 0 0 3px rgba(159,52,52,.08)}.mfa-generate-action{display:inline-flex;align-items:center;gap:10px}@keyframes mfaFade{from{opacity:0}to{opacity:1}}@keyframes mfaSpin{to{transform:rotate(360deg)}}@keyframes accordionIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}@media(max-width:760px){.settings-form-grid{grid-template-columns:1fr}.profile-page{max-width:100%}.mfa-setup-note{max-width:100%}}
+  </style>`;
+  const accountBody = `<form method="post" action="/account/profile">${clientCsrfInput(client)}<div class="settings-form-grid"><div class="field"><label>Full name</label><input name="fullName" value="${esc(client.fullName || '')}" maxlength="255" autocomplete="name" required></div><div class="field"><label>Company name</label><input name="companyName" value="${esc(client.companyName || '')}" maxlength="255" autocomplete="organization"></div><div class="field"><label>Phone</label><input name="phone" value="${esc(client.phone || '')}" maxlength="40" autocomplete="tel"></div><div class="field"><label>Email</label><input name="email" value="${esc(client.email || '')}" ${emailInputAttrs('required')}></div></div>${pending ? `<p class="notice"><strong>Pending email confirmation:</strong> ${esc(client.pendingEmail)}. Confirm the link before logout or the change will be cancelled.</p>` : ''}<button class="btn blue" style="margin-top:20px">Save changes</button></form>`;
+  const csrf = clientCsrfInput(client);
+  const generateForm = `<div class="mfa-generate-action" data-mfa-generate-action data-action="/account/security/mfa-generate">${csrf}<button class="btn blue" type="button" data-mfa-generate-button onclick="return window.adproofMfaGenerateClick(event,this)">${setupSecret ? 'Generate new setup key' : 'Generate TOTP secret'}</button></div>`;
+  const securityBody = mfaEnabled
+    ? `<p>Status: <span class="pill good">enabled</span></p><p class="muted mfa-setup-note" style="line-height:130%">Authenticator MFA is active for password login. Click disable and confirm your password in the pop-up.</p><div class="mfa-generate-action" data-mfa-disable-action>${csrf}<button class="btn ghost" type="button" data-mfa-disable-open>Disable MFA</button></div>`
+    : (setupSecret ? `<p>Status: <span class="pill warn">disabled</span></p><p class="mfa-setup-note">A setup key has been generated. If you copied it into your authenticator app, enter the 6-digit code below. If you closed the setup pop-up before copying, generate a new setup key.</p><form method="post" action="/account/security/mfa-enable">${csrf}<div class="field"><label>Authenticator code</label><input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456" required oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"></div><button class="btn blue">Enable MFA</button></form><div style="margin-top:12px">${generateForm}</div>` : `<p>Status: <span class="pill warn">disabled</span></p><p class="muted mfa-setup-note">Generate a TOTP secret, add it to an authenticator app, then confirm the 6-digit code. After that, login will ask for MFA in a separate pop-up only after the password is accepted.</p>${generateForm}`);
+  return appShell('Personal details', `${css}<section class="profile-page"><p><a href="/account">← Dashboard</a></p><h1 class="title">Personal details</h1><p class="lead">Manage account information and account security.</p>${message ? `<p class="notice ok">${esc(message)}</p>` : ''}${danger ? `<p class="notice danger">${esc(danger)}</p>` : ''}<div class="profile-accordion"><details class="card settings-panel" open><summary><h2>Account info</h2></summary><div class="accordion-content">${accountBody}</div></details><details class="card settings-panel security-anchor" id="security"><summary><h2>Security / MFA</h2></summary><div class="accordion-content">${securityBody}</div></details></div></section>${clientMfaProfileScript()}`, client);
+}
+
 async function accountPage(client, message = '', opts = {}) {
   const linkedProjects = await ensureClientProjects(client.id);
   const projectCards = linkedProjects.length
     ? (await Promise.all(linkedProjects.map(projectAccountCard))).join('')
     : `<article class="account-project-card empty-project-card"><h3>No projects yet</h3><p class="muted">Create your first project and it will be stored in PostgreSQL for this account.</p></article>`;
-  const onboarding = (opts.onboarding || linkedProjects.length === 0) ? `<section class="soft-panel section"><h2>First setup tutorial</h2><div class="grid cols3"><div><h3>1. Enable MFA</h3><p class="muted">Open the security area after launch and protect the account with authenticator MFA.</p></div><div><h3>2. Create project</h3><p class="muted">Add a project name, website URL, ad slot selector, and protected content selector.</p></div><div><h3>3. Analytics</h3><p class="muted">Review overlay traffic from the database by today, week, month, or all time.</p></div></div></section>` : '';
+  const onboarding = (opts.onboarding || linkedProjects.length === 0) ? `<section class="setup-tour-card section"><h2>First setup tutorial</h2><p class="muted">Finish these steps before creating the first project. The buttons below lead to the exact areas you need.</p><div class="grid cols3"><div class="setup-step"><h3>1. Enable MFA</h3><p class="muted">Protect the account with an authenticator app before adding production domains.</p><p><a class="btn ghost" href="/account/profile#security">Open security</a></p></div><div class="setup-step"><h3>2. Create project</h3><p class="muted">Add project name, website URL, ad slot selector, and protected content selector.</p><p><button class="btn blue" type="button" data-open-project-modal>Create first project</button></p></div><div class="setup-step"><h3>3. Review analytics</h3><p class="muted">After SDK events arrive, check overlay traffic by today, week, month, or all time.</p></div></div></section>` : '';
   const pop = opts.registered ? modalBlock('registered') : opts.passwordReset ? modalBlock('passwordReset') : opts.loginSuccess ? modalBlock('login') : '';
   const projectCardCss = `<style>
     .account-projects-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:14px}
     .account-project-card{position:relative;overflow:hidden;background:rgba(255,255,255,.74);border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:0 20px 70px rgba(72,59,39,.08);backdrop-filter:blur(10px)}
     .account-project-card:before{content:'';position:absolute;left:0;right:0;top:0;height:7px;background:var(--project-gradient,linear-gradient(90deg,#111,#4a90d9))}
     .account-project-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-top:4px}
-    .account-project-top h3{margin:0 0 7px;font-size:20px;letter-spacing:-.35px}.project-domains{margin:0;color:var(--muted);line-height:1.45;font-size:14px}.project-badges{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.project-install-snippet{margin:16px 0 14px;font-size:12px;border-radius:16px;max-height:116px;overflow:auto}.account-project-bottom{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.project-mini-stats{margin:0;color:var(--muted);font-size:14px;font-weight:600}.empty-project-card{min-height:150px;display:flex;flex-direction:column;justify-content:center}.portal-project-section h2{margin-bottom:6px}.portal-project-section .lead{margin-top:0}.danger-zone{border-color:rgba(189,63,63,.22);background:rgba(255,245,245,.72)}.danger-zone h2{color:#713333}.danger-btn{color:#713333!important;border-color:rgba(189,63,63,.28)!important}@media(max-width:900px){.account-projects-grid{grid-template-columns:1fr}.account-project-top{display:block}.project-badges{justify-content:flex-start;margin-top:10px}}
+    .account-project-top h3{margin:0 0 7px;font-size:20px;letter-spacing:-.35px}.project-domains{margin:0;color:var(--muted);line-height:1.45;font-size:14px}.project-badges{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.project-install-snippet{margin:16px 0 14px;font-size:12px;border-radius:16px;max-height:116px;overflow:auto}.account-project-bottom{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.project-mini-stats{margin:0;color:var(--muted);font-size:14px;font-weight:600}.empty-project-card{min-height:150px;display:flex;flex-direction:column;justify-content:center}.portal-project-section h2{margin-bottom:6px}.setup-tour-card .btn{font-size:13px;min-height:42px;padding:10px 14px;line-height:1.2}.portal-project-section .lead{margin-top:0}.setup-step .btn{font-size:13px;line-height:1.2;padding:10px 12px;min-height:40px}.danger-zone{border-color:rgba(189,63,63,.22);background:rgba(255,245,245,.72)}.danger-zone h2{color:#713333}.danger-btn{color:#713333!important;border-color:rgba(189,63,63,.28)!important}@media(max-width:900px){.account-projects-grid{grid-template-columns:1fr}.account-project-top{display:block}.project-badges{justify-content:flex-start;margin-top:10px}}
   </style>`;
-  return appShell('Client account', `${projectCardCss}${pop}<section><h1 class="title">Client account</h1><div class="account-summary"><span class="account-chip">${esc(client.fullName || 'Account owner')}</span><span class="account-chip">${esc(client.email)}</span><span class="account-chip">${esc(client.companyName || 'No company name')}</span><span class="account-chip trial">${esc(planLabel(client.planId || 'beta'))} · ${esc(String(trialSnapshot(client).daysRemaining))} days left</span></div>${message ? `<p class="notice ok">${esc(message)}</p>` : ''}<form method="post" action="/logout" style="display:inline">${clientCsrfInput(client)}<button class="btn ghost">Logout</button></form></section>${onboarding}<section class="grid cols3 section"><div class="card"><h2>Account status</h2><p><span class="pill good">${esc(planLabel(client.planId || 'beta'))} Trial</span></p><p class="muted">Active for 1 month. Included now: 1 project, 500k checks, PostgreSQL analytics, SDK and server verification tests.</p></div><div class="card"><h2>Projects</h2><p class="kpi"><span class="num">${linkedProjects.length}</span></p><p class="muted">Each project has a separate analytics page with overlay and traffic data.</p></div><div class="card"><h2>Database analytics</h2><p class="muted">Analytics reads project data from PostgreSQL when <code>DATABASE_URL</code> and Postgres storage are enabled.</p></div></section><section class="section portal-project-section"><h2>Your projects</h2><p class="lead">Project cards are stored and restored from PostgreSQL for this account.</p><div class="account-projects-grid">${projectCards}</div></section><section class="section"><button class="create-project-tile" type="button" data-open-project-modal>Create Project +</button></section><div class="project-modal" data-project-modal aria-hidden="true"><div class="project-modal-card"><button class="modal-close" type="button" data-close-project-modal aria-label="Close">×</button><h2>Create project</h2><form method="post" action="/account/projects/create">${clientCsrfInput(client)}<div class="row"><div class="field"><label>Project name</label><input name="projectName" required placeholder="My publisher site"></div><div class="field"><label>Website URL or domain</label><input name="domain" required placeholder="example.com or www.example.com/page"></div></div><div class="row"><div class="field"><label>Ad slot selector</label><input name="adContainerSelector" value='[data-adproof-slot="left-sidebar"]'><p class="muted" id="selector-tutorial">Tutorial: press F12, click the element picker arrow, hover the banner, right-click the outer ad container, copy selector, paste it here. You can add your GIF tutorial later.</p></div><div class="field"><label>Element to lock selector</label><input name="protectedSelector" value='[data-adproof-content="protected"]'></div></div><div class="row"><div class="field"><label>Project label color</label><select name="projectColor"><option value="violet">Black violet gradient</option><option value="blue">Blue gradient</option><option value="terra">Warm terracotta</option><option value="green">Soft green</option></select></div><div class="field"><label>Preview colors</label><div class="swatches"><span class="swatch" style="--g:linear-gradient(135deg,#1d102f,#7b5cff,#4a90d9)">Violet</span><span class="swatch" style="--g:linear-gradient(135deg,#10263f,#3f88c5,#8bd3ff)">Blue</span><span class="swatch" style="--g:linear-gradient(135deg,#3a1f16,#c98555,#f0c28a)">Terra</span><span class="swatch" style="--g:linear-gradient(135deg,#10291e,#2f8d65,#a8dfbf)">Green</span></div></div></div><button class="btn blue">Save project</button></form></div></div><script>(function(){var modal=document.querySelector('[data-project-modal]');var open=document.querySelector('[data-open-project-modal]');var close=document.querySelector('[data-close-project-modal]');function show(){if(!modal)return;modal.classList.add('open');modal.setAttribute('aria-hidden','false');}function hide(){if(!modal)return;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');}if(open)open.addEventListener('click',show);if(close)close.addEventListener('click',hide);if(modal)modal.addEventListener('click',function(e){if(e.target===modal)hide();});document.addEventListener('keydown',function(e){if(e.key==='Escape')hide();});})();</script>`, client);
+  return appShell('Dashboard', `${projectCardCss}${pop}<section><h1 class="title">Dashboard</h1><div class="account-summary"><span class="account-chip trial">Trial: ${esc(String(trialSnapshot(client).daysRemaining))} days left</span></div>${message ? `<p class="notice ok">${esc(message)}</p>` : ''}</section>${onboarding}<section class="grid cols3 section"><div class="card"><h2>Account status</h2><p><span class="pill good">Active</span></p><p class="muted">Active for 1 month. Included now: 1 project, 500k checks, PostgreSQL analytics, SDK and server verification tests.</p></div><div class="card"><h2>Projects</h2><p class="kpi"><span class="num">${linkedProjects.length}</span></p><p class="muted">Each project has a separate analytics page with overlay and traffic data.</p></div><div class="card"><h2>Database analytics</h2><p class="muted">Analytics reads project data from PostgreSQL when <code>DATABASE_URL</code> and Postgres storage are enabled.</p></div></section><section class="section portal-project-section"><h2>Your projects</h2><p class="lead">Project cards are stored and restored from PostgreSQL for this account.</p><div class="account-projects-grid">${projectCards}</div></section><section class="section"><button class="create-project-tile" type="button" data-open-project-modal>Create Project +</button></section><div class="project-modal" data-project-modal aria-hidden="true"><div class="project-modal-card"><button class="modal-close" type="button" data-close-project-modal aria-label="Close">×</button><h2>Create project</h2><form method="post" action="/account/projects/create">${clientCsrfInput(client)}<div class="row"><div class="field"><label>Project name</label><input name="projectName" required placeholder="My publisher site"></div><div class="field"><label>Website URL or domain</label><input name="domain" required minlength="4" pattern="^(?=.{4,253}$)(?!https?://)([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(/.*)?$" title="Use a real domain with a dot and at least 2 letters after the dot, for example example.com" placeholder="example.com or www.example.com/page"></div></div><div class="row"><div class="field"><label>Project label color</label><select name="projectColor"><option value="violet">Black violet gradient</option><option value="blue">Blue gradient</option><option value="terra">Warm terracotta</option><option value="green">Soft green</option></select></div><div class="field"><label>Preview colors</label><div class="swatches"><span class="swatch" style="--g:linear-gradient(135deg,#1d102f,#7b5cff,#4a90d9)">Violet</span><span class="swatch" style="--g:linear-gradient(135deg,#10263f,#3f88c5,#8bd3ff)">Blue</span><span class="swatch" style="--g:linear-gradient(135deg,#3a1f16,#c98555,#f0c28a)">Terra</span><span class="swatch" style="--g:linear-gradient(135deg,#10291e,#2f8d65,#a8dfbf)">Green</span></div></div></div><button class="btn blue">Save project</button></form></div></div><script>(function(){var modal=document.querySelector('[data-project-modal]');var openButtons=document.querySelectorAll('[data-open-project-modal]');var close=document.querySelector('[data-close-project-modal]');function show(){if(!modal)return;modal.classList.add('open');modal.setAttribute('aria-hidden','false');}function hide(){if(!modal)return;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');}openButtons.forEach(function(open){open.addEventListener('click',show);});if(close)close.addEventListener('click',hide);if(modal)modal.addEventListener('click',function(e){if(e.target===modal)hide();});document.addEventListener('keydown',function(e){if(e.key==='Escape')hide();});})();</script>`, client);
 }
-async function createClientPortalSession(res, account, redirectTo = '/account') {
+async function createClientPortalSession(res, account, redirectTo = '/account', extraCookies = []) {
   const sid = randomId('cli', 24);
   const sess = { accountId: account.id, createdAt: now(), lastSeen: now(), expiresAt: now() + CLIENT_SESSION_TTL, csrfToken: randomKey('csrf') };
   await saveClientSessionRecord(sid, sess);
-  res.writeHead(302, { Location: redirectTo, 'Set-Cookie': `${CLIENT_COOKIE}=${encodeURIComponent(sid)}; ${clientCookieAttrs()}`, 'Cache-Control': 'no-store' });
+  const cookies = [`${CLIENT_COOKIE}=${encodeURIComponent(sid)}; ${clientCookieAttrs()}`].concat(extraCookies || []);
+  res.writeHead(302, { Location: redirectTo, 'Set-Cookie': cookies, 'Cache-Control': 'no-store' });
   return res.end();
 }
+function sweepPendingMfaSessions() {
+  const ts = now();
+  for (const [token, entry] of pendingClientMfaSessions.entries()) if (!entry || ts > Number(entry.expiresAt || 0)) pendingClientMfaSessions.delete(token);
+  for (const [token, entry] of pendingAdminMfaSessions.entries()) if (!entry || ts > Number(entry.expiresAt || 0)) pendingAdminMfaSessions.delete(token);
+}
+function issueClientMfaChallenge(req, res, account, values = {}, message = '') {
+  sweepPendingMfaSessions();
+  const token = randomId('cmfa', 24);
+  pendingClientMfaSessions.set(token, { accountId: account.id, createdAt: now(), expiresAt: now() + CLIENT_MFA_CHALLENGE_TTL });
+  appendAudit(req, 'client_login_mfa_challenge', { accountId: account.id, email: account.email }, null);
+  return send(res, 200, clientLoginPage(message, values, '', { mfaRequired: true }), { 'Set-Cookie': `${CLIENT_MFA_COOKIE}=${encodeURIComponent(token)}; ${mfaCookieAttrs()}` });
+}
+function issueAdminMfaChallenge(req, res, user, message = '') {
+  sweepPendingMfaSessions();
+  const token = randomId('amfa', 24);
+  pendingAdminMfaSessions.set(token, { userId: user.id, createdAt: now(), expiresAt: now() + CLIENT_MFA_CHALLENGE_TTL });
+  appendAudit(req, 'admin_login_mfa_challenge', { email: user.email }, user);
+  return send(res, 200, loginPage(message, { mfaRequired: true }), { 'Set-Cookie': `${ADMIN_MFA_COOKIE}=${encodeURIComponent(token)}; ${mfaCookieAttrs()}` });
+}
 async function handleClientPortal(req, res, url) {
+  if ((url.pathname === '/login' || url.pathname === '/register') && req.method === 'GET') {
+    const existingClient = await clientFromSession(req);
+    if (existingClient) return redirect(res, '/account');
+  }
   if (url.pathname === '/reset-password' && req.method === 'GET') {
     if (url.searchParams.get('sent') === '1') return send(res, 200, resetPasswordPage('A one-time reset link was sent.', {}, true));
     return send(res, 200, resetPasswordPage());
   }
   if (url.pathname === '/reset-password' && req.method === 'POST') {
     const form = await readForm(req);
-    const email = normalizeEmail(cleanClientText(form.email || '', 255));
+    const email = safeEmailInput(form.email || '');
     if (!email || email.length < 5 || email.length > 255 || hasHtmlLikeInput(email) || !emailLooksValid(email)) {
-      return send(res, 400, resetPasswordPage('Enter a valid email address with @.', form));
+      return send(res, 400, resetPasswordPage('Please enter a valid email address.', form));
     }
     const lookup = await findClientAccountByEmailDetailed(email);
     if (AUTH_DEBUG_LOGS) {
@@ -3140,7 +3887,9 @@ async function handleClientPortal(req, res, url) {
     const validation = validateClientRegistrationFields(form || {});
     if (!validation.ok) return send(res, 400, registerPage('', form));
     const { email, password, companyName, fullName, phone, termsAccepted } = validation;
-    if (await findClientAccountByEmail(email)) return send(res, 409, registerPage('An account with this email already exists. Please login or use another email.', form));
+    if (await findClientAccountByEmail(email)) return send(res, 409, registerPage('An account with this email already exists. Please login to your account or use password reset.', form));
+    const existingPhone = await findClientAccountByPhone(phone);
+    if (existingPhone) return send(res, 409, registerPage('An account with this phone number already exists. Please login to your account or use another phone number.', form));
     const marketingConsent = form.marketingConsent === 'on' || form.marketingConsent === 'true' || form.marketingConsent === true;
     const account = { id: randomId('acct'), email, fullName, phone, companyName, password: passwordRecord(password), provider: 'password', role: 'client_owner', status: 'trial', planId: 'beta', marketingConsent, marketingConsentAt: marketingConsent ? iso() : '', termsAccepted, termsAcceptedAt: termsAccepted ? iso() : '', emailVerified: false, trialEndsAt: new Date(now() + 30 * 24 * 60 * 60 * 1000).toISOString(), createdAt: iso(), updatedAt: iso() };
     let savedAccount;
@@ -3153,7 +3902,7 @@ async function handleClientPortal(req, res, url) {
     if (marketingConsent) await persistMarketingConsentToAppDb(savedAccount, req, 'signup_checkbox');
     appendAudit(req, 'client_account_registered_page', { accountId: savedAccount.id, email, marketingConsent, termsAccepted }, null);
     const welcome = await sendAppEmail(email, 'Welcome to AdProof', 'Your AdProof account was created successfully. You can now create your first project and connect the SDK to your test site.', { accountId: savedAccount.id, type: 'registration_success' });
-    structuredLog('log', 'registration_email_processed', { email, accountId: savedAccount.id, mailId: welcome.id, status: welcome.status, outboxFile: EMAIL_OUTBOX_FILE });
+    structuredLog('log', 'registration_email_processed', { emailMasked: maskEmail(email), emailHash: emailHash(email), accountId: savedAccount.id, mailId: welcome.id, status: welcome.status, error: welcome.error || '', outboxFile: EMAIL_OUTBOX_FILE, smtp: smtpPublicStatus() });
     return createClientPortalSession(res, savedAccount, '/account?registered=1&onboarding=1');
   }
   if (url.pathname === '/login' && req.method === 'GET') {
@@ -3166,11 +3915,26 @@ async function handleClientPortal(req, res, url) {
     const key = requestIpKey(req) + '|client-login';
     if (!rateLimitBucket(loginAttempts, key, ADMIN_LOGIN_LIMIT_WINDOW, ADMIN_LOGIN_LIMIT_MAX)) return send(res, 429, clientLoginPage('Too many login attempts. Try again later.'));
     const form = await readForm(req);
-    const email = normalizeEmail(clamp(form.email || '', 120));
+    const email = safeEmailInput(form.email || '');
+    if (!email || email.length > 255 || hasHtmlLikeInput(email) || !emailLooksValid(email)) return send(res, 400, clientLoginPage('Please enter a valid email address.', form));
     const account = await findClientAccountByEmail(email);
     if (!account || !passwordOk(form.password || '', account.password)) { appendAudit(req, 'client_login_failed', { email }, null); return send(res, 401, clientLoginPage('Wrong email or password.', form)); }
+    if (clientMfaEnabled(account)) return issueClientMfaChallenge(req, res, account, { email }, '');
     appendAudit(req, 'client_login_success', { accountId: account.id, email }, null);
     return createClientPortalSession(res, account, '/account?login=success');
+  }
+  if (url.pathname === '/login/mfa' && req.method === 'POST') {
+    const form = await readForm(req);
+    const token = parseCookies(req.headers.cookie || '')[CLIENT_MFA_COOKIE] || '';
+    sweepPendingMfaSessions();
+    const pending = token ? pendingClientMfaSessions.get(token) : null;
+    if (!pending) return send(res, 401, clientLoginPage('MFA verification expired. Login again.', {}, '', { mfaRequired: true }), { 'Set-Cookie': clearClientMfaCookie() });
+    const account = await findClientAccountById(pending.accountId);
+    if (!account || !clientMfaEnabled(account)) { pendingClientMfaSessions.delete(token); return send(res, 401, clientLoginPage('MFA verification expired. Login again.'), { 'Set-Cookie': clearClientMfaCookie() }); }
+    if (!verifyTotp(clientMfaSecret(account), form.mfaCode || '')) { appendAudit(req, 'client_login_failed', { accountId: account.id, email: account.email, reason: 'bad_mfa' }, null); return send(res, 401, clientLoginPage('Enter a valid 6-digit MFA code.', {}, '', { mfaRequired: true })); }
+    pendingClientMfaSessions.delete(token);
+    appendAudit(req, 'client_login_success', { accountId: account.id, email: account.email, mfa: true }, null);
+    return createClientPortalSession(res, account, '/account?login=success', [clearClientMfaCookie()]);
   }
   if (url.pathname === '/account/cancel-subscription' && req.method === 'POST') {
     const form = await readForm(req);
@@ -3194,9 +3958,92 @@ async function handleClientPortal(req, res, url) {
     const form = await readForm(req);
     const client = await clientFromSession(req);
     if (!client || form.csrf !== client.csrfToken) return send(res, 403, publicAuthPage('Forbidden', '<section class="card"><h1>403</h1><p>Session token is missing or expired.</p></section>'));
+    await clearClientPendingEmailChange(client.id);
     await deleteClientSession(client.clientSessionId);
     res.writeHead(302, { Location: '/login', 'Set-Cookie': `${CLIENT_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${(USE_HTTPS || APP_ENV === 'production') ? '; Secure' : ''}` });
     return res.end();
+  }
+  if (url.pathname === '/account/profile' && req.method === 'GET') {
+    const client = await requireClient(req, res); if (!client) return;
+    const profileMessage = url.searchParams.get('saved') === '1'
+      ? 'Profile updated.'
+      : (url.searchParams.get('email') === 'confirmed'
+        ? 'Email address confirmed.'
+        : (url.searchParams.get('mfa') === 'enabled' && clientMfaEnabled(client)
+          ? 'MFA enabled successfully.'
+          : (url.searchParams.get('mfa') === 'disabled' && !clientMfaEnabled(client)
+            ? 'MFA disabled.'
+            : '')));
+    return send(res, 200, await accountProfilePage(client, profileMessage));
+  }
+  if (url.pathname === '/account/profile' && req.method === 'POST') {
+    const client = await requireClient(req, res); if (!client) return;
+    const form = await readForm(req);
+    if (form.csrf !== client.csrfToken) return send(res, 403, await accountProfilePage(client, '', 'Session token is missing or expired.'));
+    try {
+      let updated = await updateClientProfileData(client.id, { fullName: form.fullName, companyName: form.companyName, phone: form.phone });
+      const requestedEmail = safeEmailInput(form.email || '');
+      if (requestedEmail && requestedEmail !== normalizeEmail(client.email)) {
+        const result = await beginClientEmailChange(updated || client, requestedEmail, req);
+        updated = await findClientAccountById(client.id) || updated || client;
+        const mailNote = result.mail?.status === 'sent' ? 'Confirmation email sent.' : `Confirmation email queued locally. Status: ${result.mail?.status || 'unknown'}.`;
+        return send(res, 200, await accountProfilePage(updated, `Profile saved. ${mailNote}`));
+      }
+      return redirect(res, '/account/profile?saved=1');
+    } catch (err) {
+      const message = err.message === 'email_already_used' ? 'This email is already used by another account.' : (err.message === 'phone_already_used' ? 'This phone number is already used by another account.' : (err.message === 'invalid_email' ? 'Please enter a valid email address.' : 'Could not save profile data.'));
+      structuredLog('warn', 'client_profile_update_failed', { accountId: client.id, error: err.message, appDb: appDbPublicStatus() });
+      return send(res, 400, await accountProfilePage(client, '', message));
+    }
+  }
+  if (url.pathname === '/account/confirm-email-change' && req.method === 'GET') {
+    const client = await requireClient(req, res); if (!client) return;
+    try {
+      await confirmClientEmailChange(client, url.searchParams.get('token') || '');
+      return redirect(res, '/account/profile?email=confirmed');
+    } catch (err) {
+      return send(res, 400, await accountProfilePage(client, '', 'Email confirmation link is invalid, expired, already used, or the process was cancelled by logout.'));
+    }
+  }
+  if (url.pathname === '/account/security/mfa-generate' && req.method === 'POST') {
+    const client = await requireClient(req, res); if (!client) return;
+    const form = await readForm(req);
+    if (form.csrf !== client.csrfToken) {
+      if ((req.headers['x-requested-with'] || '').toLowerCase() === 'fetch') return sendJson(res, 403, { ok: false, error: 'csrf' });
+      return send(res, 403, await accountProfilePage(client, '', 'Session token is missing or expired.'));
+    }
+    const secret = newTotpSecret();
+    await setClientMfaSetupSecret(client.id, secret);
+    structuredLog('log', 'client_mfa_setup_secret_generated', { accountId: client.id, emailMasked: maskEmail(client.email) });
+    if ((req.headers['x-requested-with'] || '').toLowerCase() === 'fetch' || String(req.headers.accept || '').includes('application/json')) return sendJson(res, 200, { ok: true, secret });
+    return redirect(res, '/account/profile#security');
+  }
+  if (url.pathname === '/account/security/mfa-enable' && req.method === 'POST') {
+    const client = await requireClient(req, res); if (!client) return;
+    const form = await readForm(req);
+    if (form.csrf !== client.csrfToken) return send(res, 403, await accountProfilePage(client, '', 'Session token is missing or expired.'));
+    const setupSecret = clientMfaSetupSecret(client);
+    if (!setupSecret || !verifyTotp(setupSecret, form.code || '')) return send(res, 403, await accountProfilePage(client, '', 'MFA code invalid.'));
+    await enableClientMfa(client.id, setupSecret);
+    appendAudit(req, 'client_mfa_enabled', { accountId: client.id, email: client.email }, null);
+    return redirect(res, '/account/profile?mfa=enabled#security');
+  }
+  if (url.pathname === '/account/security/mfa-disable' && req.method === 'POST') {
+    const client = await requireClient(req, res); if (!client) return;
+    const form = await readForm(req);
+    const wantsJson = (req.headers['x-requested-with'] || '').toLowerCase() === 'fetch' || String(req.headers.accept || '').includes('application/json');
+    if (form.csrf !== client.csrfToken) {
+      if (wantsJson) return sendJson(res, 403, { ok: false, error: 'csrf', message: 'Session token is missing. Refresh the page and try again.' });
+      return send(res, 403, await accountProfilePage(client, '', 'Session token is missing or expired.'));
+    }
+    if (!passwordOk(form.password || '', client.password)) {
+      if (wantsJson) return sendJson(res, 400, { ok: false, error: 'invalid_password', field: 'password', message: 'Password is incorrect.' });
+      return send(res, 403, await accountProfilePage(client, '', 'Enter your current password to disable MFA.'));
+    }
+    await disableClientMfa(client.id);
+    appendAudit(req, 'client_mfa_disabled', { accountId: client.id, email: client.email }, null);
+    if (wantsJson) return sendJson(res, 200, { ok: true, message: 'MFA disabled successfully.' });
+    return redirect(res, '/account/profile?mfa=disabled#security');
   }
   if (url.pathname === '/account' && req.method === 'GET') {
     const client = await requireClient(req, res); if (!client) return;
@@ -3217,7 +4064,7 @@ async function handleClientPortal(req, res, url) {
     const form = await readForm(req);
     if (form.csrf !== client.csrfToken) return send(res, 403, await accountPage(client, 'CSRF token is missing or expired.'));
     const domain = sanitizeDomain(form.domain || '');
-    if (!domain) return send(res, 400, await accountPage(client, 'Enter a valid domain.'));
+    if (!isValidClientProjectDomain(domain)) return send(res, 400, await accountPage(client, 'Enter a real domain like example.com. It must include a dot and at least 2 letters after the dot.'));
     const currentProjects = await ensureClientProjects(client.id);
     const accountPlan = planFor({ planId: client.planId || 'beta' });
     if (currentProjects.length >= Number(accountPlan.maxProjects || 1)) {
@@ -3225,7 +4072,7 @@ async function handleClientPortal(req, res, url) {
     }
     const company = { id: randomId('cmp'), name: clamp(client.companyName || form.companyName || client.email, 120), contactEmail: client.email, notes: `Client portal account ${client.id}`, createdAt: iso(), updatedAt: iso() };
     state.companies.push(company);
-    const project = { id: randomId('prj'), companyId: company.id, name: clamp(form.projectName || domain, 120), publicKey: randomKey('avp_pub'), allowedDomains: projectDomainsFromInput(domain), mode: 'server-gate', protectedSelector: clamp(form.protectedSelector || '[data-adproof-content="protected"]', 120), adContainerSelector: clamp(form.adContainerSelector || '[data-adproof-slot="left-sidebar"]', 120), marketBenchmarkPercent: 33, loaderEnabled: true, autoCreateAdContainer: true, strictness: 'strict', planId: 'beta', trialEndsAt: new Date(now() + 30 * 24 * 60 * 60 * 1000).toISOString(), quota: { monthlyEvents: PLAN_LIMITS.beta.monthlyEvents, monthlyServerVerifications: PLAN_LIMITS.beta.monthlyServerVerifications, maxDomains: PLAN_LIMITS.beta.maxDomains }, pathRules: { allow: [], deny: [] }, overlayCopy: { blockTitle: 'Access paused', blockMessage: 'Ad visibility could not be verified. Please disable blockers or third-party scripts that affect the ad area, then refresh the page to continue.', softTitle: 'Connection issue', softMessage: 'Verification server is unavailable. Please refresh the page after connection is restored.' }, ui: { color: ['violet','blue','terra','green'].includes(form.projectColor) ? form.projectColor : 'violet', gradient: ['violet','blue','terra','green'].includes(form.projectColor) ? form.projectColor : 'violet' }, hardening: { webCryptoProof: true, canvasProof: true, signedEvents: true, signedEventsStrict: true, eventBatching: true, domNoise: true, domNoiseMin: 500, domNoiseMax: 700, heartbeat: true, heartbeatIntervalMs: DEFAULT_HEARTBEAT_INTERVAL, scheduledRerender: true, rerenderIntervalMs: DEFAULT_RERENDER_INTERVAL, maxRestores: 4, hardLockOnBlock: true, dynamicSdkUrl: true, polymorphicWrapper: true, encryptedSecrets: true }, createdAt: iso(), updatedAt: iso() };
+    const project = { id: randomId('prj'), companyId: company.id, name: clamp(form.projectName || domain, 120), publicKey: randomKey('avp_pub'), allowedDomains: projectDomainsFromInput(domain), mode: 'server-gate', protectedSelector: '[data-adproof-content="protected"]', adContainerSelector: '[data-adproof-slot="left-sidebar"]', marketBenchmarkPercent: 33, loaderEnabled: true, autoCreateAdContainer: true, strictness: 'strict', planId: 'beta', trialEndsAt: new Date(now() + 30 * 24 * 60 * 60 * 1000).toISOString(), quota: { monthlyEvents: PLAN_LIMITS.beta.monthlyEvents, monthlyServerVerifications: PLAN_LIMITS.beta.monthlyServerVerifications, maxDomains: PLAN_LIMITS.beta.maxDomains }, pathRules: { allow: [], deny: [] }, overlayCopy: { blockTitle: 'Access paused', blockMessage: 'Ad visibility could not be verified. Please disable blockers or third-party scripts that affect the ad area, then refresh the page to continue.', softTitle: 'Connection issue', softMessage: 'Verification server is unavailable. Please refresh the page after connection is restored.' }, ui: { color: ['violet','blue','terra','green'].includes(form.projectColor) ? form.projectColor : 'violet', gradient: ['violet','blue','terra','green'].includes(form.projectColor) ? form.projectColor : 'violet' }, hardening: { webCryptoProof: true, canvasProof: true, signedEvents: true, signedEventsStrict: true, eventBatching: true, domNoise: true, domNoiseMin: 500, domNoiseMax: 700, heartbeat: true, heartbeatIntervalMs: DEFAULT_HEARTBEAT_INTERVAL, scheduledRerender: true, rerenderIntervalMs: DEFAULT_RERENDER_INTERVAL, maxRestores: 4, hardLockOnBlock: true, dynamicSdkUrl: true, polymorphicWrapper: true, encryptedSecrets: true }, createdAt: iso(), updatedAt: iso() };
     project.domainVerification = defaultDomainVerification(project.allowedDomains || []);
     project.limits = { eventsPerMinute: MAX_EVENTS_PER_PROJECT_PER_MINUTE, sessionsPerMinute: MAX_SESSIONS_PER_PROJECT_PER_MINUTE, proofAttemptsPerVisitor: MAX_PROOF_ATTEMPTS_PER_VISITOR, eventsPerVisitorPerMinute: MAX_EVENTS_PER_VISITOR_PER_MINUTE };
     setProjectSecret(project, randomKey('avp_sec'));
@@ -3292,7 +4139,7 @@ function securityPage(user, message = '') {
   const audit = readRecentNdjson(AUDIT_LOG_DIR, 'admin-audit', 20).map(a => `<tr><td>${esc(a.time)}</td><td>${esc(a.userEmail)}</td><td>${esc(a.action)}</td><td class="muted">${esc(JSON.stringify(a.details || {}))}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No audit events</td></tr>';
   const tmpSecret = user.mfaSetupSecret || '';
   const otp = tmpSecret ? otpAuthUrl(user, tmpSecret) : '';
-  return appShell('Security', `<section><p><a href="/admin">← Dashboard</a></p><h1 class="title">Security center</h1><p class="lead">MFA, audit log, alerts, global kill switch, production guard and operational checks.</p>${message ? `<p class="notice ok">${esc(message)}</p>` : ''}</section><section class="split section"><div class="card"><h2>MFA</h2><p>Status: <span class="pill ${mfa.enabled ? 'good':'warn'}">${mfa.enabled ? 'enabled':'disabled'}</span></p>${tmpSecret ? `<p><strong>Secret:</strong></p><pre>${esc(tmpSecret)}</pre><p><strong>otpauth URL:</strong></p><pre>${esc(otp)}</pre><form method="post" action="/admin/security/mfa-enable">${csrfInput(user)}<div class="field"><label>Enter the 6-digit code from Authenticator</label><input name="code" inputmode="numeric"></div><button class="btn blue">Enable MFA</button></form>` : `<form method="post" action="/admin/security/mfa-generate">${csrfInput(user)}<button class="btn ghost">Generate TOTP secret</button></form>`}</div><div class="card"><h2>Global kill switch</h2><p>Current: <span class="pill ${state.settings?.killSwitch ? 'bad':'good'}">${state.settings?.killSwitch ? 'enabled':'disabled'}</span></p><form method="post" action="/admin/security/kill-switch">${csrfInput(user)}<input type="hidden" name="enabled" value="${state.settings?.killSwitch ? 'false':'true'}"><button class="btn ${state.settings?.killSwitch ? 'blue':'ghost'}">${state.settings?.killSwitch ? 'Disable':'Enable'} global kill switch</button></form><p class="muted">When enabled, the API stops confirming new checks and the SDK receives a safe denial. Use it for emergency rollback.</p></div></section><section class="card section"><h2>Recent alerts</h2><table class="table"><thead><tr><th>Time</th><th>Severity</th><th>Type</th><th>Details</th></tr></thead><tbody>${alerts}</tbody></table></section><section class="card section"><h2>Admin audit log</h2><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody>${audit}</tbody></table></section>`, user);
+  return appShell('Security', `<section><p><a href="/admin">← Dashboard</a></p><h1 class="title">Security center</h1><p class="lead">MFA, audit log, alerts, global kill switch, production guard and operational checks.</p>${message ? `<p class="notice ok">${esc(message)}</p>` : ''}</section><section class="split section"><div class="card"><h2>MFA</h2><p>Status: <span class="pill ${mfa.enabled ? 'good':'warn'}">${mfa.enabled ? 'enabled':'disabled'}</span></p>${tmpSecret ? `<p><strong>Secret:</strong></p><pre>${esc(tmpSecret)}</pre><p><strong>otpauth URL:</strong></p><pre>${esc(otp)}</pre><form method="post" action="/admin/security/mfa-enable">${csrfInput(user)}<div class="field"><label>Enter the 6-digit code from Authenticator</label><input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"></div><button class="btn blue">Enable MFA</button></form>` : `<form method="post" action="/admin/security/mfa-generate">${csrfInput(user)}<button class="btn ghost">Generate TOTP secret</button></form>`}</div><div class="card"><h2>Global kill switch</h2><p>Current: <span class="pill ${state.settings?.killSwitch ? 'bad':'good'}">${state.settings?.killSwitch ? 'enabled':'disabled'}</span></p><form method="post" action="/admin/security/kill-switch">${csrfInput(user)}<input type="hidden" name="enabled" value="${state.settings?.killSwitch ? 'false':'true'}"><button class="btn ${state.settings?.killSwitch ? 'blue':'ghost'}">${state.settings?.killSwitch ? 'Disable':'Enable'} global kill switch</button></form><p class="muted">When enabled, the API stops confirming new checks and the SDK receives a safe denial. Use it for emergency rollback.</p></div></section><section class="card section"><h2>Recent alerts</h2><table class="table"><thead><tr><th>Time</th><th>Severity</th><th>Type</th><th>Details</th></tr></thead><tbody>${alerts}</tbody></table></section><section class="card section"><h2>Admin audit log</h2><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody>${audit}</tbody></table></section>`, user);
 }
 
 function projectFormPage(user) {
@@ -3358,7 +4205,7 @@ function testSiteIndexPage(project) {
   const articleStable = `/test-site/article?projectKey=${encodeURIComponent(project.publicKey)}&sdkMode=stable`;
   const foreign = `/foreign-test-site?projectKey=${encodeURIComponent(project.publicKey)}&sdkMode=boot`;
   const foreignStable = `/foreign-test-site?projectKey=${encodeURIComponent(project.publicKey)}&sdkMode=stable`;
-  return appShell('AVP Test Sites', `<section class="card"><h1 class="title">Two-site SDK test bundle</h1><p class="lead">Only two test websites are used for the integration check: an allowed customer site and a foreign site that tries to reuse another project's script tag. Test pages default to dynamic <code>boot-xxxx.js</code>; customer integration still uses the stable <code>/sdk/v1/&lt;publicKey&gt;.js</code> tag.</p><p><a class="btn blue" href="${article}">Open allowed customer site</a> <a class="btn ghost" href="${foreign}">Open foreign script-tag site</a></p></section><section class="grid cols3 section"><div class="card"><h2>Site 1: allowed customer site</h2><p class="muted"><code>/test-site/article</code> loads the dynamic boot script, creates a session, checks ad visibility, heartbeat, mutation observer and backend unlock.</p><p><a class="btn ghost" href="${articleStable}">Stable tag mode</a> <a class="btn ghost" href="${article}&simulateAdBlock=1">Simulated adblock</a> <a class="btn ghost" href="${article}&simulateConnectionIssue=1">Connection issue</a> <a class="btn ghost" href="${article}&case=hide-slot">Hidden slot</a> <a class="btn ghost" href="${article}&case=remove-after-unlock">Remove slot</a> <a class="btn ghost" href="${article}&case=server-gate">Server-gate</a></p></div><div class="card"><h2>Site 2: foreign site</h2><p class="muted"><code>/foreign-test-site</code> intentionally injects the same project script from another host. The server must return a blocked SDK stub and log <code>sdk_domain_not_allowed</code>.</p><p><a class="btn ghost" href="${foreign}">Foreign boot-script reuse</a> <a class="btn ghost" href="${foreignStable}">Foreign stable-tag reuse</a></p></div><div class="card"><h2>Current project key</h2><pre>${esc(project.publicKey)}</pre><p class="muted"><a href="/debug/test-site-scripts">Debug script map</a> · <a href="/admin">Admin dashboard</a></p></div></section><section class="card section"><h2>UI ↔ backend mapping</h2><table class="table"><thead><tr><th>Area</th><th>Route/API</th><th>Purpose</th></tr></thead><tbody><tr><td>Product website</td><td><code>/</code>, <code>/product.html</code>, <code>/pricing.html</code></td><td>Public SaaS site</td></tr><tr><td>Allowed test site</td><td><code>/test-site/article</code></td><td>Real SDK behavior test</td></tr><tr><td>Foreign test site</td><td><code>/foreign-test-site</code></td><td>Script-tag theft/reuse test</td></tr><tr><td>Client SDK</td><td><code>/sdk/v1/:publicKey/...</code></td><td>Customer website integration</td></tr><tr><td>Server-gate demo</td><td><code>/test-site/backend-unlock</code></td><td>Customer backend simulation without exposing the secret key in frontend</td></tr></tbody></table></section>`, userFromAdminSession({ headers: {} }));
+  return appShell('AVP Test Sites', `<section class="card"><h1 class="title">Two-site SDK test bundle</h1><p class="lead">Only two test websites are used for the integration check: an allowed customer site and a foreign site that tries to reuse another project's script tag. Test pages default to dynamic <code>boot-xxxx.js</code>; customer integration still uses the stable <code>/sdk/v1/&lt;publicKey&gt;.js</code> tag.</p><p><a class="btn blue" href="${article}">Open allowed customer site</a> <a class="btn ghost" href="${foreign}">Open foreign script-tag site</a> <a class="btn ghost" href="/manual-test">Open manual two-site matrix</a></p></section><section class="grid cols3 section"><div class="card"><h2>Site 1: allowed customer site</h2><p class="muted"><code>/test-site/article</code> loads the dynamic boot script, creates a session, checks ad visibility, heartbeat, mutation observer and backend unlock.</p><p><a class="btn ghost" href="${articleStable}">Stable tag mode</a> <a class="btn ghost" href="${article}&simulateAdBlock=1">Simulated adblock</a> <a class="btn ghost" href="${article}&simulateConnectionIssue=1">Connection issue</a> <a class="btn ghost" href="${article}&case=hide-slot">Hidden slot</a> <a class="btn ghost" href="${article}&case=remove-after-unlock">Remove slot</a> <a class="btn ghost" href="${article}&case=server-gate">Server-gate</a></p></div><div class="card"><h2>Site 2: foreign site</h2><p class="muted"><code>/foreign-test-site</code> intentionally injects the same project script from another host. The server must return a blocked SDK stub and log <code>sdk_domain_not_allowed</code>.</p><p><a class="btn ghost" href="${foreign}">Foreign boot-script reuse</a> <a class="btn ghost" href="${foreignStable}">Foreign stable-tag reuse</a></p></div><div class="card"><h2>Current project key</h2><pre>${esc(project.publicKey)}</pre><p class="muted"><a href="/debug/test-site-scripts">Debug script map</a> · <a href="/admin">Admin dashboard</a></p></div></section><section class="card section"><h2>UI ↔ backend mapping</h2><table class="table"><thead><tr><th>Area</th><th>Route/API</th><th>Purpose</th></tr></thead><tbody><tr><td>Product website</td><td><code>/</code>, <code>/product.html</code>, <code>/pricing.html</code></td><td>Public SaaS site</td></tr><tr><td>Allowed test site</td><td><code>/test-site/article</code></td><td>Real SDK behavior test</td></tr><tr><td>Foreign test site</td><td><code>/foreign-test-site</code></td><td>Script-tag theft/reuse test</td></tr><tr><td>Client SDK</td><td><code>/sdk/v1/:publicKey/...</code></td><td>Customer website integration</td></tr><tr><td>Server-gate demo</td><td><code>/test-site/backend-unlock</code></td><td>Customer backend simulation without exposing the secret key in frontend</td></tr></tbody></table></section>`, userFromAdminSession({ headers: {} }));
 }
 
 function renderTestSiteTemplate(fileName, values) {
@@ -3421,6 +4268,81 @@ function foreignTestSitePage(project, url) {
   });
 }
 
+function manualTwoSiteProjects() {
+  return {
+    siteA: (state.projects || []).find(p => p.name === MANUAL_TEST_SITE_A_NAME) || state.projects[0],
+    siteB: (state.projects || []).find(p => p.name === MANUAL_TEST_SITE_B_NAME) || state.projects[1] || state.projects[0]
+  };
+}
+
+function publicBaseForHost(host) {
+  try {
+    const u = new URL(PUBLIC_BASE_URL);
+    u.hostname = host;
+    return u.origin;
+  } catch {
+    return `${USE_HTTPS ? 'https' : 'http'}://${host}:${PORT}`;
+  }
+}
+
+function manualTestHref(site, project, expected = '') {
+  const host = site === 'b' ? '127.0.0.2' : 'localhost';
+  const base = publicBaseForHost(host);
+  const pathName = site === 'b' ? '/manual-test/site-b' : '/manual-test/site-a';
+  const params = new URLSearchParams({ projectKey: project?.publicKey || '', sdkMode: 'stable' });
+  if (expected) params.set('expected', expected);
+  return `${base}${pathName}?${params.toString()}`;
+}
+
+function manualSdkScriptTag(project, url) {
+  if (!project) return '';
+  const attrs = 'data-protected-selector="#protected-content" data-ad-container-selector="#ad-slot"';
+  if (testSdkMode(url) !== 'stable') return testSdkScriptTag(project, url, attrs);
+  const cacheBuster = `avp_manual=${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return `<script src="${stableSdkScriptUrl(project)}?${cacheBuster}" async data-project-key="${project.publicKey}" data-sdk-mode="stable" ${attrs}></script>`;
+}
+
+function manualTestMatrixPage() {
+  const { siteA, siteB } = manualTwoSiteProjects();
+  if (!siteA || !siteB) return appShell('Manual test unavailable', '<section class="card"><h1 class="title">Manual test unavailable</h1><p>Create two projects first.</p></section>');
+  const rows = [
+    ['PASS', 'Site A on localhost', siteA.name, siteA.allowedDomains || [], manualTestHref('a', siteA, 'pass'), 'Correct project tag on its own allowed host'],
+    ['BLOCK', 'Site A on localhost', siteB.name, siteB.allowedDomains || [], manualTestHref('a', siteB, 'block'), 'Stolen Site B tag inserted into Site A'],
+    ['PASS', 'Site B on 127.0.0.2', siteB.name, siteB.allowedDomains || [], manualTestHref('b', siteB, 'pass'), 'Correct project tag on its own allowed host'],
+    ['BLOCK', 'Site B on 127.0.0.2', siteA.name, siteA.allowedDomains || [], manualTestHref('b', siteA, 'block'), 'Stolen Site A tag inserted into Site B']
+  ];
+  const htmlRows = rows.map(([expected, site, project, domains, href, note]) => `<tr><td><span class="pill ${expected === 'PASS' ? 'good' : 'bad'}">${expected}</span></td><td>${esc(site)}</td><td>${esc(project)}<br><code>${esc((project === siteA.name ? siteA.publicKey : siteB.publicKey) || '')}</code></td><td>${esc((domains || []).join(', '))}</td><td>${esc(note)}</td><td><a class="btn ${expected === 'PASS' ? 'blue' : 'ghost'}" href="${esc(href)}">Open test</a></td></tr>`).join('');
+  return appShell('Manual two-site test', `<section class="card"><h1 class="title">Manual two-site script-tag test</h1><p class="lead">This is the most visual local test: two separate demo projects are bound to two different hosts. You can open a normal integration and then deliberately insert the other project's SDK tag.</p><p><a class="btn blue" href="${esc(manualTestHref('a', siteA, 'pass'))}">Open Site A correct tag</a> <a class="btn ghost" href="${esc(manualTestHref('b', siteB, 'pass'))}">Open Site B correct tag</a> <a class="btn ghost" href="/debug/test-site-scripts">Debug script map</a></p><p class="notice">For the clearest browser experience, local two-host testing is easiest with <code>USE_HTTPS=false</code>. HTTPS also works after accepting the local self-signed certificate for both <code>localhost</code> and <code>127.0.0.2</code>.</p></section><section class="card section"><h2>Expected matrix</h2><table class="table"><thead><tr><th>Expected</th><th>Opened site</th><th>Injected project tag</th><th>Allowed domains</th><th>Scenario</th><th>Run</th></tr></thead><tbody>${htmlRows}</tbody></table></section><section class="grid cols2 section"><div class="card"><h2>Project A</h2><p><strong>${esc(siteA.name)}</strong></p><pre>${esc(stableSdkScriptTag(siteA))}</pre></div><div class="card"><h2>Project B</h2><p><strong>${esc(siteB.name)}</strong></p><pre>${esc(stableSdkScriptTag(siteB))}</pre></div></section>`, userFromAdminSession({ headers: {} }));
+}
+
+function manualTestSitePage(site, project, url) {
+  if (!project) return appShell('Manual test project not found', '<section class="card"><h1>Project not found</h1></section>');
+  const expected = url.searchParams.get('expected') === 'block' ? 'block' : 'pass';
+  const siteLabel = site === 'b' ? 'Site B / 127.0.0.2' : 'Site A / localhost';
+  const expectedLabel = expected === 'block' ? 'BLOCK: real SDK must not be delivered' : 'PASS: SDK should verify and unlock content';
+  const injectedSnippet = manualSdkScriptTag(project, url);
+  const switchProject = site === 'b' ? manualTwoSiteProjects().siteA : manualTwoSiteProjects().siteB;
+  const switchHref = manualTestHref(site, switchProject, 'block');
+  return `<!doctype html><html class="auth-preload" lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(siteLabel)} · ${esc(project.name)}</title><style>
+  :root{--ivory:#f6f0e6;--ivory2:#fbf8f2;--ink:#171717;--muted:#736b62;--line:rgba(20,20,20,.1);--card:rgba(255,255,255,.82);--blue:#4a90d9;--good:#257a50;--bad:#9f3434;--warn:#9d6a16}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top left,rgba(74,144,217,.12),transparent 34rem),linear-gradient(180deg,var(--ivory),var(--ivory2));font-family:Inter,Arial,sans-serif;color:var(--ink)}header{position:sticky;top:0;z-index:20;background:#111;color:#fff;padding:16px 26px;display:flex;align-items:center;justify-content:space-between;gap:14px}header a{color:#fff;text-decoration:none;opacity:.82}.wrap{width:min(1180px,calc(100% - 42px));margin:30px auto;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:26px}.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:24px;box-shadow:0 22px 70px rgba(72,59,39,.08);backdrop-filter:blur(10px)}h1{font-size:38px;line-height:1.08;letter-spacing:-1px;margin:0 0 14px}.lead{font-size:18px;line-height:1.7;color:var(--muted)}.pill{display:inline-flex;padding:7px 10px;border-radius:999px;background:#e7f2ff;color:#245b83;font-weight:750;font-size:12px}.pill.good{background:#e2f5ea;color:var(--good)}.pill.bad{background:#ffe7e7;color:var(--bad)}#ad-slot{width:300px;min-height:250px;margin:12px auto 18px}.btn{display:inline-flex;align-items:center;justify-content:center;margin:4px 6px 4px 0;border-radius:14px;background:#111;color:#fff;text-decoration:none;padding:11px 14px;font-weight:760;border:0;cursor:pointer}.btn.blue{background:var(--blue)}.btn.ghost{background:#fff;color:#111;border:1px solid var(--line)}pre{background:#111;color:#edf7ff;padding:14px;border-radius:16px;white-space:pre-wrap;word-break:break-word;font-size:13px}.status{margin-top:14px;padding:14px;border-radius:16px;background:#f7f7f7;border:1px solid var(--line);white-space:pre-wrap;line-height:1.55;color:var(--warn)}.status.good{color:var(--good)}.status.bad{color:var(--bad)}#protected-content{font-size:18px;line-height:1.85}.mini{font-size:13px;color:var(--muted);line-height:1.55}@media(max-width:920px){.wrap{grid-template-columns:1fr}h1{font-size:30px}#ad-slot{width:100%}header{align-items:flex-start;flex-direction:column}}
+  </style></head><body><header><strong>AdProof manual test · ${esc(siteLabel)}</strong><nav><a href="/manual-test">Matrix</a> · <a href="/test-site">Old test launcher</a> · <a href="/admin">Dashboard</a></nav></header><main class="wrap"><section class="card"><span class="pill ${expected === 'pass' ? 'good' : 'bad'}">Expected ${esc(expectedLabel)}</span><h1>Injected SDK tag test</h1><p class="lead">This page is intentionally simple: one host, one ad slot, one protected content block, and one selected project script. Replace the project key in the URL or use the buttons to test stolen script reuse.</p><p><strong>Opened host:</strong> <code id="hostText"></code><br><strong>Injected project:</strong> ${esc(project.name)}<br><strong>Allowed domains:</strong> ${esc((project.allowedDomains || []).join(', ') || 'none')}<br><strong>Public key:</strong> <code>${esc(project.publicKey)}</code></p><div id="protected-content"><p>This protected article block should remain visible only after the SDK creates a session, verifies the ad slot, and confirms browser-side proof.</p><p>If this page uses a foreign project tag, the server should return only a blocked SDK stub before the real SDK logic is delivered.</p></div><p><a class="btn blue" href="${esc(manualTestHref(site, project, expected))}">Reload same test</a><a class="btn ghost" href="${esc(switchHref)}">Insert the other site's tag</a><a class="btn ghost" href="/debug/test-site-scripts">Open script map</a></p><h2>Injected script tag</h2><pre>${esc(injectedSnippet)}</pre><div id="status" class="status">Waiting for SDK result...</div></section><aside class="card"><p class="pill">Advertisement slot</p><div id="ad-slot"></div><p class="mini">Manual check: after unlock, try deleting <code>#ad-slot</code> in DevTools. The observer/heartbeat should restore or lock access.</p><pre id="debugBox">waiting...</pre></aside></main><script>window.__AVP_DEBUG_VISITOR_TOKEN__=true; window.__AVP_EXPECTED_RESULT__=${JSON.stringify(expected)}; window.__AVP_TEST_PROJECT_KEY__=${JSON.stringify(project.publicKey)}; document.getElementById('hostText').textContent=location.host;</script>${injectedSnippet}<script>
+  (function(){
+    function update(){
+      var blocked=window.__AVP_DOMAIN_BLOCKED__;
+      var token=window.__AVP_VISITOR_TOKEN__||'';
+      var status=document.getElementById('status');
+      var debug=document.getElementById('debugBox');
+      if(blocked){ status.className='status bad'; status.textContent='Blocked by server domain guard:\n'+JSON.stringify(blocked,null,2); }
+      else if(token){ status.className='status good'; status.textContent='SDK loaded and visitorToken was created. For PASS tests this is expected; for BLOCK tests this means the domain rules are too permissive.'; }
+      else { status.className='status'; status.textContent='Waiting for SDK result. If this is a BLOCK test, the page may be replaced by the blocked SDK overlay.'; }
+      if(debug) debug.textContent='expected: '+window.__AVP_EXPECTED_RESULT__+'\nhost: '+location.host+'\nprojectKey: '+window.__AVP_TEST_PROJECT_KEY__+'\nblocked: '+(blocked?JSON.stringify(blocked):'no')+'\nvisitorToken: '+(token||'none');
+    }
+    update(); setInterval(update, 700);
+    window.addEventListener('avp:domain-blocked', update);
+  })();
+  </script></body></html>`;
+}
+
 async function handleTestSiteBackendUnlock(req, res) {
   const body = await readJson(req);
   const project = projectByPublicKey(body.projectKey) || state.projects[0];
@@ -3448,7 +4370,7 @@ function demoCustomerPage(project) {
   }
   const protectedSel = '#protected-content';
   const adSel = '#ad-slot';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AdProof demo · ${esc(project.name)}</title><style>
+  return `<!doctype html><html class="auth-preload" lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AdProof demo · ${esc(project.name)}</title><style>
   :root{--ivory:#fdf9e9;--blue:#4a90d9;--blue-dark:#236ca8;--ink:#171717;--muted:#766f66;--line:rgba(20,20,20,.1);--card:rgba(255,255,255,.8)}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:rgb(253,249,233);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink)}header{position:sticky;top:0;z-index:20;background:#111;color:#fff;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;gap:18px;box-shadow:0 12px 38px rgba(0,0,0,.14)}header strong{font-weight:600}header a{color:rgba(255,255,255,.78);text-decoration:none;font-weight:600;font-size:14px}main{width:min(1120px,calc(100% - 44px));margin:34px auto;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:28px;align-items:start}.article,.side-card{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:26px;box-shadow:0 22px 70px rgba(72,59,39,.09);backdrop-filter:blur(10px)}.meta{display:inline-flex;gap:8px;align-items:center;padding:7px 10px;border-radius:999px;background:#dff0ff;color:#245b83;font-size:12px;font-weight:600;margin:0 0 16px}h1{font-size:42px;line-height:1.05;letter-spacing:-1.4px;margin:0 0 16px}.lead{font-size:18px;line-height:1.7;color:var(--muted);margin:0 0 22px}#protected-content{line-height:1.85;font-size:17px}.ad-label{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#8d8376;margin:0 0 10px;text-align:center}#ad-slot{width:300px;min-height:250px;margin:0 auto 16px}.hint{font-size:13px;color:var(--muted);line-height:1.55;margin:14px 0 0}.btn-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:15px;background:#111;color:#fff;text-decoration:none;padding:10px 13px;font-weight:600}.btn.ghost{background:rgba(255,255,255,.72);color:#111;border:1px solid var(--line)}code{background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:9px;padding:2px 6px}@media(max-width:900px){main{grid-template-columns:1fr}h1{font-size:32px}#ad-slot{width:100%}header{align-items:flex-start;flex-direction:column}}
   </style></head><body><header><strong>AdProof project demo</strong><nav><a href="/account">Client portal</a> · <a href="/">Home</a></nav></header><main><article class="article"><div class="meta">Live SDK demo · ${esc(project.name)}</div><h1>Protected content opens after ad visibility verification</h1><p class="lead">This page uses your project public key and a local demo ad container. It is built for testing SDK, heartbeat, lease and hard-lock behavior before connecting a real customer website.</p><div id="protected-content"><p>This is the protected content area. In a production integration, this could be a premium article, download page, feature panel or gated media block.</p><p>If the ad zone is visible and verification succeeds, this content stays available. If the ad zone is blocked, hidden or removed, AdProof pauses access and records the reason in analytics.</p></div></article><aside class="side-card"><p class="ad-label">Advertisement test slot</p><div id="ad-slot"></div><p class="hint">Project key: <code>${esc(project.publicKey)}</code></p><div class="btn-row"><a class="btn ghost" href="/demo/customer/${encodeURIComponent(project.publicKey)}">Reload normal</a><a class="btn ghost" href="/demo/customer/${encodeURIComponent(project.publicKey)}?simulateAdBlock=1">Simulate blocker</a></div></aside></main><script src="${stableSdkScriptUrl(project)}" async data-project-key="${project.publicKey}" data-protected-selector="${protectedSel}" data-ad-container-selector="${adSel}"></script></body></html>`;
 }
@@ -3653,14 +4575,31 @@ async function handleAdmin(req, res, url) {
     const form = await readForm(req);
     const user = state.users.find(u => u.email === form.email);
     if (!user || !passwordOk(form.password || '', user.password)) { appendAudit(req, 'login_failed', { email: form.email || '', reason: 'bad_password' }, null); return send(res, 401, loginPage('Invalid email or password')); }
-    if (user.mfa?.enabled && !verifyTotp(user.mfa.secret, form.mfaCode || '')) { appendAudit(req, 'login_failed', { email: user.email, reason: 'bad_mfa' }, user); return send(res, 401, loginPage('Invalid MFA code')); }
     if (APP_ENV === 'production' && REQUIRE_MFA_IN_PRODUCTION && !user.mfa?.enabled) { appendAudit(req, 'login_blocked_mfa_required', { email: user.email }, user); return send(res, 403, loginPage('Production requires MFA. Enable MFA in development/admin setup or temporarily disable REQUIRE_MFA_IN_PRODUCTION.')); }
+    if (user.mfa?.enabled) return issueAdminMfaChallenge(req, res, user, '');
     if (user.password?.algo !== 'pbkdf2-sha256') user.password = passwordRecord(form.password || '');
     const sid = randomId('adm', 24);
     state.adminSessions[sid] = { userId: user.id, createdAt: now(), lastSeen: now(), csrfToken: randomKey('csrf'), mfaOk: Boolean(user.mfa?.enabled) };
     appendAudit(req, 'login_success', { email: user.email }, user);
     scheduleSave();
     res.writeHead(302, { Location: '/admin', 'Set-Cookie': `${ADMIN_COOKIE}=${encodeURIComponent(sid)}; Path=/; HttpOnly; SameSite=Lax; Secure`, 'Cache-Control': 'no-store' });
+    return res.end();
+  }
+  if (url.pathname === '/admin/login/mfa' && req.method === 'POST') {
+    const form = await readForm(req);
+    const token = parseCookies(req.headers.cookie || '')[ADMIN_MFA_COOKIE] || '';
+    sweepPendingMfaSessions();
+    const pending = token ? pendingAdminMfaSessions.get(token) : null;
+    if (!pending) return send(res, 401, loginPage('MFA verification expired. Login again.', { mfaRequired: true }), { 'Set-Cookie': clearAdminMfaCookie() });
+    const user = state.users.find(u => u.id === pending.userId);
+    if (!user || !user.mfa?.enabled) { pendingAdminMfaSessions.delete(token); return send(res, 401, loginPage('MFA verification expired. Login again.'), { 'Set-Cookie': clearAdminMfaCookie() }); }
+    if (!verifyTotp(user.mfa.secret, form.mfaCode || '')) { appendAudit(req, 'login_failed', { email: user.email, reason: 'bad_mfa' }, user); return send(res, 401, loginPage('Invalid MFA code', { mfaRequired: true })); }
+    pendingAdminMfaSessions.delete(token);
+    const sid = randomId('adm', 24);
+    state.adminSessions[sid] = { userId: user.id, createdAt: now(), lastSeen: now(), csrfToken: randomKey('csrf'), mfaOk: true };
+    appendAudit(req, 'login_success', { email: user.email, mfa: true }, user);
+    scheduleSave();
+    res.writeHead(302, { Location: '/admin', 'Set-Cookie': [`${ADMIN_COOKIE}=${encodeURIComponent(sid)}; Path=/; HttpOnly; SameSite=Lax; Secure`, clearAdminMfaCookie()], 'Cache-Control': 'no-store' });
     return res.end();
   }
   if (url.pathname === '/admin/logout' && req.method === 'POST') {
@@ -3831,7 +4770,9 @@ async function handleAuth(req, res, url) {
     const validation = validateClientRegistrationFields(body || {});
     if (!validation.ok) return sendJson(res, 400, { success: false, reason: 'validation_error', message: clientValidationMessage(validation.errors), errors: validation.errors });
     const { email, password, companyName, fullName, phone, termsAccepted } = validation;
-    if (await findClientAccountByEmail(email)) return sendJson(res, 409, { success: false, reason: 'account_exists' });
+    if (await findClientAccountByEmail(email)) return sendJson(res, 409, { success: false, reason: 'account_exists', message: 'An account with this email already exists. Please login or use password reset.' });
+    const existingPhone = await findClientAccountByPhone(phone);
+    if (existingPhone) return sendJson(res, 409, { success: false, reason: 'phone_exists', message: 'An account with this phone number already exists. Please login or use another phone number.' });
     const account = {
       id: randomId('acct'),
       email,
@@ -3842,6 +4783,10 @@ async function handleAuth(req, res, url) {
       provider: 'password',
       role: 'client_owner',
       status: 'trial',
+      planId: 'beta',
+      marketingConsent: false,
+      marketingConsentAt: '',
+      emailVerified: false,
       trialEndsAt: new Date(now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       createdAt: iso(),
       updatedAt: iso()
@@ -3881,7 +4826,12 @@ async function handleAuth(req, res, url) {
       const profile = await httpsJsonGet('https://www.googleapis.com/oauth2/v2/userinfo', token.body.access_token);
       if (profile.status < 200 || profile.status >= 300) throw new Error('profile_fetch_failed');
       structuredLog('log', 'google_oauth_profile_received', { emailMasked: maskEmail(profile.body && profile.body.email), emailHash: emailHash(profile.body && profile.body.email), verifiedEmail: profile.body && profile.body.verified_email !== false });
-      const account = await findOrCreateGoogleAccount(profile.body);
+      const prepared = await prepareGoogleAccount(profile.body);
+      if (prepared.needsPassword) {
+        structuredLog('log', 'google_oauth_needs_password_completion', { emailMasked: maskEmail(prepared.profile.email), emailHash: emailHash(prepared.profile.email), appDb: appDbPublicStatus() });
+        return redirect(res, `/auth/google/complete?token=${encodeURIComponent(prepared.token)}`);
+      }
+      const account = prepared.account;
       structuredLog('log', 'google_oauth_login_account_ready', { emailMasked: maskEmail(account.email), emailHash: emailHash(account.email), accountId: account.id, provider: account.provider, authDbFile: AUTH_DB_FILE, authDbExists: fs.existsSync(AUTH_DB_FILE), appDb: appDbPublicStatus() });
       appendAudit(req, 'client_google_login_success', { accountId: account.id, email: account.email }, null);
       return createClientPortalSession(res, account, '/account?login=success');
@@ -3890,6 +4840,32 @@ async function handleAuth(req, res, url) {
       const dbHint = String(err.message || '').startsWith('app_db_required') ? ' Account database is not connected. Set DATABASE_URL or POSTGRES_URL and restart the server.' : '';
       return send(res, 502, publicAuthPage('Google login failed', '<section class="card"><h1 class="title">Google login failed</h1><p class="lead">The Google OAuth callback could not be completed. Check credentials, redirect URI and network access.' + esc(dbHint) + '</p><p><a class="btn blue" href="/login">Back to login</a></p></section>'));
     }
+  }
+  if (url.pathname === '/auth/google/complete' && req.method === 'GET') {
+    const token = String(url.searchParams.get('token') || '');
+    const rec = loadGoogleSignupToken(token);
+    if (!rec) return send(res, 400, publicAuthPage('Google signup expired', '<section class="card"><h1 class="title">Google signup expired</h1><p class="lead">Please start Google signup again.</p><p><a class="btn blue" href="/register">Back to signup</a></p></section>'));
+    return send(res, 200, googlePasswordPage(token, rec.profile));
+  }
+  if (url.pathname === '/auth/google/complete' && req.method === 'POST') {
+    const form = await readForm(req);
+    const token = String(form.token || '');
+    const rec = loadGoogleSignupToken(token);
+    if (!rec) return send(res, 400, publicAuthPage('Google signup expired', '<section class="card"><h1 class="title">Google signup expired</h1><p class="lead">Please start Google signup again.</p><p><a class="btn blue" href="/register">Back to signup</a></p></section>'));
+    const validation = validateNewPasswordFields(form || {});
+    if (!validation.ok) return send(res, 400, googlePasswordPage(token, rec.profile, clientValidationMessage(validation.errors)));
+    let account;
+    try {
+      account = await createGooglePasswordAccount(rec.profile, validation.password);
+      deleteGoogleSignupToken(token);
+    } catch (err) {
+      structuredLog('error', 'google_oauth_password_account_create_failed', { emailMasked: maskEmail(rec.profile.email), emailHash: emailHash(rec.profile.email), error: err.message, appDb: appDbPublicStatus() });
+      return send(res, 503, googlePasswordPage(token, rec.profile, 'Account database is not connected. Set DATABASE_URL or POSTGRES_URL and restart the server.'));
+    }
+    const welcome = await sendAppEmail(account.email, 'Welcome to AdProof', 'Your AdProof account was created successfully with Google and email/password login. You can now create your first project and connect the SDK to your test site.', { accountId: account.id, type: 'google_registration_success' });
+    structuredLog('log', 'google_registration_email_processed', { emailMasked: maskEmail(account.email), emailHash: emailHash(account.email), accountId: account.id, mailId: welcome.id, status: welcome.status, outboxFile: EMAIL_OUTBOX_FILE, smtp: smtpPublicStatus() });
+    appendAudit(req, 'client_google_account_registered_with_password', { accountId: account.id, email: account.email }, null);
+    return createClientPortalSession(res, account, '/account?registered=1&onboarding=1');
   }
   if (url.pathname === '/auth/github/start' && req.method === 'GET') {
     return sendJson(res, 501, { success: false, reason: 'github_oauth_not_configured', provider: 'github' });
@@ -4186,10 +5162,14 @@ const requestHandler = async (req, res) => {
       const client = await clientFromSession(req);
       return sendJson(res, 200, { ok: true, authenticated: Boolean(client), user: client ? { id: client.id, name: client.fullName || client.email || 'Account', email: client.email || '', planId: client.planId || 'beta', status: client.status || 'trial' } : null });
     }
-    if (['/login','/register','/logout','/account','/reset-password'].includes(url.pathname) || url.pathname.startsWith('/account/') || url.pathname.startsWith('/reset-password/')) return await handleClientPortal(req, res, url);
+    if (['/login','/login/mfa','/register','/logout','/account','/reset-password'].includes(url.pathname) || url.pathname.startsWith('/account/') || url.pathname.startsWith('/reset-password/')) return await handleClientPortal(req, res, url);
     if (url.pathname.startsWith('/admin')) return await handleAdmin(req, res, url);
     if (url.pathname.startsWith('/auth/')) return await handleAuth(req, res, url);
     if (url.pathname.startsWith('/api/v1/')) return await handleApi(req, res, url);
+    if (url.pathname === '/debug/smtp-status' && req.method === 'GET') {
+      if (APP_ENV === 'production') return sendJson(res, 404, { success: false, reason: 'not_found' });
+      return sendJson(res, 200, { ok: true, smtp: smtpPublicStatus(), requiredEnv: ['SMTP_ENABLED=true','SMTP_HOST','SMTP_PORT','SMTP_SECURE','SMTP_USER','SMTP_PASS','SMTP_FROM'], hint: SMTP_ENABLED && !SMTP_HOST ? 'SMTP_ENABLED=true, but SMTP_HOST is missing in this process .env.' : (SMTP_ENABLED && (!SMTP_USER || !SMTP_PASS) ? 'SMTP host is set, but SMTP_USER or SMTP_PASS is missing.' : 'If status is sent=false, check /debug/email-outbox and server logs.') });
+    }
     if (url.pathname === '/debug/auth-accounts' && req.method === 'GET') {
       if (APP_ENV === 'production') return sendJson(res, 404, { success: false, reason: 'not_found' });
       return sendJson(res, 200, Object.assign({ ok: true, note: 'Emails are masked and hashed. This endpoint is for local debugging only.' }, await authDebugSnapshot(req)));
@@ -4218,6 +5198,9 @@ const requestHandler = async (req, res) => {
       return sendJson(res, 200, { ok: true, note: 'Static SDK script map for manual Site A / Site B testing. Both sites are foreign to the other project unless their host is allowed.', publicBaseUrl: PUBLIC_BASE_URL, siteAHost: 'localhost', siteBHost: '127.0.0.2', rules: ['A site + A project key must pass when localhost is allowed.', 'A site + B project key must block when localhost is not allowed for B.', 'B site + B project key must pass only when 127.0.0.2 is allowed for B.', 'B site + A project key must block when 127.0.0.2 is not allowed for A.'], projects: await currentProjectScriptDebugList(20) });
     }
     if (url.pathname === '/test-site/backend-unlock' && req.method === 'POST') return await handleTestSiteBackendUnlock(req, res);
+    if ((url.pathname === '/manual-test' || url.pathname === '/manual-test/') && req.method === 'GET') return send(res, 200, manualTestMatrixPage());
+    if (url.pathname === '/manual-test/site-a' && req.method === 'GET') return send(res, 200, manualTestSitePage('a', projectByPublicKey(url.searchParams.get('projectKey')) || manualTwoSiteProjects().siteA, url));
+    if (url.pathname === '/manual-test/site-b' && req.method === 'GET') return send(res, 200, manualTestSitePage('b', projectByPublicKey(url.searchParams.get('projectKey')) || manualTwoSiteProjects().siteB, url));
     if ((url.pathname === '/test-site' || url.pathname === '/test-site/') && req.method === 'GET') return send(res, 200, testSiteIndexPage(projectByPublicKey(url.searchParams.get('projectKey')) || state.projects[0]));
     if (url.pathname === '/test-site/article' && req.method === 'GET') return send(res, 200, testSiteArticlePage(projectByPublicKey(url.searchParams.get('projectKey')) || state.projects[0], url));
     if (url.pathname === '/foreign-test-site' && req.method === 'GET') return send(res, 200, foreignTestSitePage(projectByPublicKey(url.searchParams.get('projectKey')) || state.projects[0], url));
@@ -4352,6 +5335,11 @@ server.listen(PORT, HOST, () => {
   console.log(`[beta] Client auth storage: ${APP_DB_ENABLED && APP_DB_CONFIGURED ? 'Postgres/App DB' : 'JSON fallback'}${AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH ? ' (database required)' : ''}`);
   console.log(`[beta] App DB: enabled=${APP_DB_ENABLED} configured=${APP_DB_CONFIGURED} connected=${appDbReady} source=${process.env.DATABASE_URL ? 'DATABASE_URL' : (process.env.POSTGRES_URL ? 'POSTGRES_URL' : 'none')}`);
   if ((APP_DB_ENABLED || AUTH_REQUIRE_DATABASE_FOR_CLIENT_AUTH) && !APP_DB_CONFIGURED) console.log('[beta] App DB warning: DATABASE_URL or POSTGRES_URL is missing, so client accounts cannot be written to Postgres.');
-  console.log(`[beta] Event log dir: ${EVENT_LOG_DIR}`);
+  const smtpStatusForStartup = smtpPublicStatus();
+  console.log(`[beta] SMTP: enabled=${smtpStatusForStartup.enabled} configured=${smtpStatusForStartup.configured} host=${smtpStatusForStartup.host || 'none'} user=${smtpStatusForStartup.hasUser ? 'set' : 'missing'} pass=${smtpStatusForStartup.hasPassword ? 'set' : 'missing'} nodemailer=${smtpStatusForStartup.nodemailerLoaded}`);
+  if (smtpStatusForStartup.enabled && (!smtpStatusForStartup.configured || !smtpStatusForStartup.hasUser || !smtpStatusForStartup.hasPassword || !smtpStatusForStartup.from)) console.log('[beta] SMTP warning: SMTP_ENABLED=true, but SMTP_HOST/SMTP_USER/SMTP_PASS/SMTP_FROM is incomplete. Emails will not be delivered.');
+  console.log(`[beta] Event log dir: ${LOCAL_EVENT_LOG_ENABLED ? EVENT_LOG_DIR : 'disabled (PostgreSQL direct event write)'}`);
+  console.log(`[beta] Local state JSON write: ${LOCAL_STATE_WRITE_ENABLED ? 'enabled' : 'disabled (PostgreSQL config source)'}`);
+  console.log(`[beta] Local runtime JSON write: ${LOCAL_RUNTIME_WRITE_ENABLED ? 'enabled' : 'disabled (runtime memory/remote DB mode)'}`);
   logStaticTestSiteScripts();
 });

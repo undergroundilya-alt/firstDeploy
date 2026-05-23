@@ -1,0 +1,17 @@
+AdProof v43 — mobile profile, CTA padding, profile form and mockup overflow polish
+
+Changes:
+- Mobile header auth links now align left with the rest of the menu items.
+- Mobile Profile pop-up opens from the top-right side of the Profile row instead of the left side.
+- CTA dark band padding is normalized to 16px.
+- Personal details page width is capped at 720px on desktop.
+- Save changes button has margin-top:20px.
+- Account info fields remain stacked with compact spacing and validation room.
+- Home mockup debug pane and debug-list items now use overflow hidden/min-width fixes so status pills and long text do not break outside the card.
+- Client project creation modal now shows only Project name, Website URL/domain, and project label color/preview.
+- Hidden technical selectors are now applied as safe defaults server-side for client-created projects.
+
+Checks run:
+- node --check server.js
+- node --check public-site/app.js
+- npm test

@@ -1,13 +1,14 @@
 <!doctype html>
-<html lang="en">
+<html class="auth-preload" lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" type="image/png" href="/icon.png">
-  <title>AdProof — Support</title>
-  <meta name="description" content="Support, sales, and beta access request page for AdProof.">
+  <title>AdProof — Contact us</title>
+  <meta name="description" content="Contact AdProof for product questions, beta access, integration help, pricing, or publisher setup support.">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="style.css">
+  <style id="adproof-auth-critical">html.auth-preload body > :not(.page-loader){display:none!important;}html.auth-preload body > .page-loader{display:grid!important;visibility:visible!important;opacity:1!important;}</style><script>try{console.log('[adproof-header] head-critical-active',{t:(performance&&performance.now)?performance.now().toFixed(1)+'ms':'n/a',path:location.pathname,htmlClass:document.documentElement.className});}catch(e){}</script>
+  <link rel="stylesheet" href="style.css"><noscript><style>html.auth-preload body > *{display:revert!important;visibility:visible!important;opacity:1!important}</style></noscript>
 </head>
 <body>
 <header class="site-header topbar">
@@ -20,8 +21,7 @@
       <span></span><span></span><span></span>
     </button>
     <nav class="nav" data-nav aria-label="Main navigation">
-      <a href="index.html" class="">Home</a><a href="product.html" class="">Product</a><a href="ai.html" class="">AI</a><a href="security.html" class="">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="">Docs</a><a href="blog.html" class="">Blog</a><a href="/login" class="">Login</a>
-      <a class="nav-cta" href="/register">Get access</a>
+      <a href="index.html" class="">Home</a><a href="product.html" class="">Product</a><a href="security.html" class="">Security</a><a href="pricing.html" class="">Pricing</a><a href="docs.html" class="">Docs</a><span class="public-auth-slot" data-public-auth><a href="/login">Login</a><a class="nav-cta" href="/register">Get access</a></span>
     </nav>
   </div>
 </header>
@@ -30,17 +30,17 @@
   <section class="page-hero">
     <div class="container split align-center">
       <div class="reveal">
-        <div class="eyebrow"><span class="dot"></span> Support</div>
-        <h1>Contact sales for custom traffic</h1>
-        <p class="lead">Use this page for enterprise traffic, custom limits, revenue-share discussions, or larger publisher setups.</p>
+        <div class="eyebrow"><span class="dot"></span> Contact</div>
+        <h1>Contact us</h1>
+        <p class="lead">Send a question about AdProof, beta access, integration, pricing, or your publisher setup.</p>
       </div>
       <div class="card reveal">
-        <h2>Fast answers</h2>
+        <h2>How we can help</h2>
         <ul class="clean-list">
-          <li>Integration review</li>
-          <li>Snippet placement</li>
-          <li>Allowed domain setup</li>
-          <li>Server verify planning</li>
+          <li>Product questions</li>
+          <li>Integration setup</li>
+          <li>Pricing or trial details</li>
+          <li>Technical page review</li>
         </ul>
       </div>
     </div>
@@ -49,8 +49,8 @@
   <section class="section tight">
     <div class="container split align-start">
       <div class="card support-form-card reveal">
-        <span class="pill good">Contact sales</span>
-        <h2>Contact sales</h2>
+        <span class="pill good">Contact us</span>
+        <h2>Send a message</h2>
         <form class="lead-form" data-lead-form>
           <label>Name
             <input type="text" name="name" autocomplete="name" placeholder="Your name">
@@ -61,23 +61,22 @@
           <label>Company or website
             <input type="text" name="company" autocomplete="organization" placeholder="example.com">
           </label>
-          <label>What monthly traffic volume are you planning to verify?
-            <textarea name="message" placeholder="Tell us your expected monthly checks, daily visits, number of websites, ad slots, or custom enterprise traffic needs."></textarea>
+          <label>Message
+            <textarea name="message" placeholder="Tell us what you want to check, connect, or clarify."></textarea>
           </label>
-          <button class="btn blue" type="submit">Send request</button>
+          <button class="btn blue" type="submit">Send message</button>
           <p class="form-status" data-form-status></p>
         </form>
       </div>
 
       <div class="card support-checklist reveal">
-        <span class="pill purple">Before we reply</span>
-        <h2>Prepare your traffic context</h2>
+        <span class="pill purple">Helpful context</span>
+        <h2>Before we reply</h2>
         <ul class="clean-list">
-          <li>Estimate your daily visits or monthly ad visibility checks.</li>
-          <li>List the websites or domains you want to connect.</li>
-          <li>Decide whether you need fixed pricing, revenue-share, or a hybrid model.</li>
-          <li>Prepare one test page if you want a technical integration review.</li>
-          <li>Mention whether you plan to use frontend gating or server-gate verification.</li>
+          <li>Share your website or domain if it is relevant.</li>
+          <li>Mention what you want to test or protect.</li>
+          <li>Add a page URL if you want a technical review.</li>
+          <li>Include expected traffic only if pricing or limits matter.</li>
         </ul>
       </div>
     </div>
@@ -87,15 +86,15 @@
 <footer class="site-footer">
   <div class="container">
     <div class="footer-grid">
-      <div class="footer-section"><h4>Product</h4><a href="product.html">Product</a><a href="ai.html">AI</a><a href="security.html">Security</a><a href="pricing.html">Pricing</a></div>
-      <div class="footer-section"><h4>Use cases</h4><a href="product.html">Publishers</a><a href="security.html">Premium content</a><a href="ai.html">Visibility insights</a><a href="/login">Client portal</a></div>
-      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Docs</a><a href="blog.html">Blog</a><a href="/login">Login</a><a href="#">System status</a></div>
-      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="support.html">Support</a><a href="/register">Get access</a><a href="privacy.html">Privacy</a></div>
-    <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
+      <div class="footer-section"><h4>Product</h4><a href="product.html">Overview</a><a href="pricing.html">Pricing</a><a href="security.html">Security</a><span class="footer-disabled" aria-disabled="true">Documentation</span></div>
+      <div class="footer-section"><h4>Use cases</h4><span class="footer-disabled" aria-disabled="true">Publisher sites</span><span class="footer-disabled" aria-disabled="true">Protected content</span><span class="footer-disabled" aria-disabled="true">Visibility analytics</span><span class="footer-disabled" aria-disabled="true">Client portal</span></div>
+      <div class="footer-section"><h4>Resources</h4><a href="docs.html">Integration docs</a><a href="/login">Client portal</a><a href="support.html">Support</a><span class="footer-disabled footer-status" aria-disabled="true">System Status</span></div>
+      <div class="footer-section"><h4>Company</h4><a href="about.html">About</a><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a><a href="/register">Get access</a></div>
+      <img class="footer-mark" src="/icon.png" alt="AdProof logo" aria-hidden="true">
     </div>
     <div class="footer-bottom">
       <span>© 2026 AdProof</span>
-      <span class="footer-terms"><a href="terms.html">Terms of Use</a><span class="legal-dot" aria-hidden="true">•</span><a href="privacy.html">Privacy Policy</a></span>
+      <span class="footer-legal-bottom"><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></span>
     </div>
   </div>
 </footer>

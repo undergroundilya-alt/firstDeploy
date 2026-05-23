@@ -1,0 +1,34 @@
+AdProof v40 — public header auth debug logs
+
+Purpose:
+- Diagnose why Login/Get access is still visible before Profile/Dashboard on public pages.
+- Add early critical CSS in the <head> so public page content is hidden before auth-check completes.
+- Add console logs for every step of header/auth boot.
+
+How to test:
+1. Start the server.
+2. Open the home page while logged in.
+3. Open DevTools → Console.
+4. Filter by: [adproof-header]
+5. Copy the full sequence of logs if Login/Get access still flashes.
+
+Expected key logs:
+- head-critical-active
+- boot-script-start
+- loader-inserted
+- initAuthNav-start
+- initAuthNav-slot-found
+- auth-fetch-start
+- auth-fetch-response
+- auth-fetch-data
+- renderClient-before / renderClient-after OR renderGuest-before / renderGuest-after
+- mark-auth-nav-ready-called
+- auth-ready-resolved
+- window-load-wait-auth
+- hide-loader-start
+- page-revealed
+
+Important:
+If Login/Get access is visible before page-revealed, then critical CSS is not applied early enough or browser cache is serving old HTML/CSS.
+If renderGuest happens before renderClient, then /api/client/session did not see the client session cookie at that moment.
+If auth-fetch-error appears, the endpoint request failed or timed out.

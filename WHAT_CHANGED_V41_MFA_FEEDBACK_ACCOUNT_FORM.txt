@@ -1,0 +1,13 @@
+AdProof v41 — MFA feedback and Account info spacing polish
+
+Changes:
+- After enabling client MFA, /account/profile now shows a visible success notice: "MFA enabled successfully."
+- Disable MFA no longer shows the password field inline on the Security / MFA panel.
+- Disable MFA now opens a centered confirmation pop-up with a password field after the user clicks Disable MFA.
+- Direct ?mfa=enabled / ?mfa=disabled messages are only shown when the real account MFA state matches the requested message.
+- Account info fields are stacked vertically and use tighter spacing, closer to the login form layout while leaving room for validation messages.
+- Existing smooth MFA setup key modal / no-reload generation behavior from prior builds is preserved.
+
+Validation:
+- node --check server.js
+- npm test

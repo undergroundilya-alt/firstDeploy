@@ -1,0 +1,7 @@
+AdProof v54 - Profile pop-up style polish
+
+- Reduced floating Profile pop-up width to 188px max.
+- Matched pop-up item typography to cabinet menu style: 13px, 600 weight, 12px radius.
+- Added inline hover/focus states for cloned portal links/buttons.
+- Removed slow fade/transition and shortened delayed close to 80ms.
+- Did not change auth logic or other page sections.

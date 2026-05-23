@@ -1,0 +1,1 @@
+v51 fixes mobile Get access/Dashboard CTA styles and makes Profile pop-up reliable on mobile touch/click with viewport portal positioning.

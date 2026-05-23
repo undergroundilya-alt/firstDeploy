@@ -1,0 +1,13 @@
+AdProof v47 — floating Profile overlay + mobile header alignment
+
+Changes:
+- Profile dropdown is now controlled as a viewport overlay with position: fixed and very high z-index.
+- The dropdown is positioned by JavaScript from the Profile trigger coordinates, so it is not visually constrained by the header/nav flow.
+- Mobile header auth items are normalized as full-width left-aligned rows: Profile first, Dashboard below.
+- The Profile dropdown is constrained to the visible viewport and should no longer render off-screen.
+- Added robust hover/focus/click behavior so the menu remains usable while moving the pointer from Profile into the dropdown.
+
+Validation:
+- node --check public-site/app.js
+- node --check server.js
+- npm test

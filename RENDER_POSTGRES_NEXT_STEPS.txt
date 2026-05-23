@@ -9,7 +9,7 @@ Before production/beta testing with real data, rotate/reset the Render PostgreSQ
 
 3) In the Web Service Environment, add variables from .env.render.example.
 Use the INTERNAL DATABASE URL when the web service and database are inside Render.
-Do not use the external URL unless you connect from your own PC.
+If you use an external *.render.com PostgreSQL URL, keep POSTGRES_SSL=true. The app now auto-enables SSL for Render external URLs.
 
 4) Set:
 DATABASE_URL=<Render internal database URL>
@@ -17,7 +17,7 @@ ENABLE_APP_DB=true
 ENABLE_POSTGRES_STORAGE=true
 POSTGRES_AUTO_MIGRATE=true
 POSTGRES_BOOTSTRAP_FROM_JSON=true
-POSTGRES_SSL=false
+POSTGRES_SSL=true  (for Render external *.render.com URLs; the app also auto-enables SSL for them)
 USE_HTTPS=false
 TRUST_PROXY=true
 PUBLIC_BASE_URL=https://YOUR_RENDER_WEB_SERVICE.onrender.com

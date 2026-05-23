@@ -1,14 +1,71 @@
 (function(){
+  var dbg=function(stage, detail){
+    try{
+      var t=(performance&&performance.now)?performance.now().toFixed(1)+'ms':'n/a';
+      console.log('[adproof-header]', stage, Object.assign({t:t, path:location.pathname, htmlClass:document.documentElement.className}, detail||{}));
+    }catch(e){}
+  };
+  window.__adproofHeaderLog=dbg;
+  dbg('boot-script-start', {bodyReady:!!document.body});
   var loader=document.createElement('div');
+  var resolved=false;
+  var resolveAuth;
+  window.__adproofAuthNavReady=new Promise(function(resolve){resolveAuth=resolve;});
+  window.__adproofResolveAuthNav=function(reason){
+    if(resolved){dbg('auth-ready-duplicate-ignored', {reason:reason||''});return;}
+    resolved=true;
+    dbg('auth-ready-resolved', {reason:reason||''});
+    resolveAuth();
+  };
   loader.className='page-loader';
   loader.innerHTML='<div class="page-loader-dot" aria-label="Loading"></div>';
   document.documentElement.classList.add('page-loading');
-  if(document.body){document.body.prepend(loader);}else{document.addEventListener('DOMContentLoaded',function(){document.body.prepend(loader);});}
-  window.addEventListener('load',function(){setTimeout(function(){loader.classList.add('hide');document.documentElement.classList.remove('page-loading');setTimeout(function(){loader.remove();},360);},160);});
+  document.documentElement.classList.add('auth-preload');
+  function insertLoader(){
+    if(!document.body){dbg('loader-insert-wait-body');return false;}
+    if(!document.querySelector('.page-loader')) document.body.prepend(loader);
+    dbg('loader-inserted', {bodyChildren:document.body.children.length});
+    return true;
+  }
+  if(!insertLoader()){
+    document.addEventListener('DOMContentLoaded',function(){dbg('domcontentloaded-for-loader');insertLoader();});
+  }
+  function hideLoader(){
+    dbg('hide-loader-scheduled');
+    setTimeout(function(){
+      dbg('hide-loader-start');
+      loader.classList.add('hide');
+      document.documentElement.classList.remove('page-loading');
+      document.documentElement.classList.remove('auth-preload');
+      document.documentElement.classList.add('auth-ready');
+      dbg('page-revealed');
+      setTimeout(function(){loader.remove();dbg('loader-removed');},360);
+    },100);
+  }
+  window.addEventListener('load',function(){
+    dbg('window-load-wait-auth');
+    window.__adproofAuthNavReady.then(hideLoader);
+  });
+  setTimeout(function(){
+    if(!resolved) dbg('still-waiting-auth-after-1000ms', {slotText:(document.querySelector('[data-public-auth]')||{}).innerText||''});
+  },1000);
+  setTimeout(function(){
+    if(!resolved) dbg('still-waiting-auth-after-3000ms', {slotText:(document.querySelector('[data-public-auth]')||{}).innerText||''});
+  },3000);
 })();
 (function () {
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+  const headerLog = (stage, detail) => {
+    if (typeof window.__adproofHeaderLog === 'function') window.__adproofHeaderLog(stage, detail || {});
+    else { try { console.log('[adproof-header]', stage, detail || {}); } catch (_) {} }
+  };
+  const profileLog = (stage, detail) => {
+    try {
+      const t = (performance && performance.now) ? performance.now().toFixed(1) + 'ms' : 'n/a';
+      console.log('[adproof-profile-mobile]', stage, Object.assign({ t, path: location.pathname, w: window.innerWidth, menuOpen: document.body.classList.contains('menu-open') }, detail || {}));
+    } catch (_) {}
+  };
 
   const toast = $('[data-toast]');
   function showToast(message) {
@@ -19,24 +76,274 @@
     showToast.timer = setTimeout(() => toast.classList.remove('show'), 2200);
   }
 
+  function markAuthNavReady(reason) {
+    headerLog('mark-auth-nav-ready-called', { reason: reason || '' });
+    if (typeof window.__adproofResolveAuthNav === 'function') window.__adproofResolveAuthNav(reason || 'initAuthNav');
+  }
+
+
+  function attachFloatingProfileMenus(root = document) {
+    const profiles = $$('.nav-profile', root);
+    profiles.forEach(profile => {
+      if (profile.dataset.floatingBound === '1') return;
+      const trigger = $('.nav-profile-trigger', profile);
+      const sourceMenu = $('.nav-profile-menu', profile);
+      if (!trigger || !sourceMenu) return;
+      profile.dataset.floatingBound = '1';
+      profileLog('bind-profile-menu', { triggerText: trigger.textContent || '', sourceText: sourceMenu.textContent || '' });
+
+      // Keep the source menu out of layout. The visible popover is a separate
+      // body-level portal, so it can never stretch the header or be clipped by it.
+      sourceMenu.setAttribute('aria-hidden', 'true');
+      sourceMenu.style.display = 'none';
+      sourceMenu.style.visibility = 'hidden';
+      sourceMenu.style.pointerEvents = 'none';
+
+      const portal = document.createElement('div');
+      portal.className = 'adproof-profile-floating-portal';
+      portal.setAttribute('role', 'menu');
+      portal.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(portal);
+
+      let closeTimer = null;
+      let isOpen = false;
+      let pointerToggledAt = 0;
+      let openedByPointer = false;
+
+      function setImportant(el, prop, value) {
+        try { el.style.setProperty(prop, value, 'important'); }
+        catch (_) { el.style[prop] = value; }
+      }
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(value, max));
+      }
+      function fillPortal() {
+        portal.innerHTML = sourceMenu.innerHTML;
+        portal.querySelectorAll('a,button').forEach(item => {
+          setImportant(item, 'display', 'flex');
+          setImportant(item, 'align-items', 'center');
+          setImportant(item, 'justify-content', 'flex-start');
+          setImportant(item, 'width', '100%');
+          setImportant(item, 'min-height', '34px');
+          setImportant(item, 'padding', '9px 11px');
+          setImportant(item, 'margin', '0');
+          setImportant(item, 'border', '0');
+          setImportant(item, 'border-radius', '12px');
+          setImportant(item, 'background', 'transparent');
+          setImportant(item, 'color', '#111');
+          setImportant(item, 'font-family', 'Inter, Arial, sans-serif');
+          setImportant(item, 'font-size', '13px');
+          setImportant(item, 'font-weight', '600');
+          setImportant(item, 'line-height', '1.2');
+          setImportant(item, 'text-align', 'left');
+          setImportant(item, 'text-decoration', 'none');
+          setImportant(item, 'box-sizing', 'border-box');
+          setImportant(item, 'cursor', 'pointer');
+          item.onmouseenter = function(){ setImportant(item, 'background', '#f3efe6'); setImportant(item, 'color', '#111'); };
+          item.onmouseleave = function(){ setImportant(item, 'background', 'transparent'); setImportant(item, 'color', '#111'); };
+          item.onfocus = function(){ setImportant(item, 'background', '#f3efe6'); setImportant(item, 'color', '#111'); };
+          item.onblur = function(){ setImportant(item, 'background', 'transparent'); setImportant(item, 'color', '#111'); };
+        });
+      }
+      function basePortalStyles() {
+        const width = Math.min(188, Math.max(164, window.innerWidth - 24));
+        setImportant(portal, 'position', 'fixed');
+        setImportant(portal, 'z-index', '2147483647');
+        setImportant(portal, 'width', Math.round(width) + 'px');
+        setImportant(portal, 'max-width', 'calc(100vw - 24px)');
+        setImportant(portal, 'min-width', '0');
+        setImportant(portal, 'padding', '7px');
+        setImportant(portal, 'border-radius', '16px');
+        setImportant(portal, 'background', 'rgba(255,255,255,.985)');
+        setImportant(portal, 'border', '1px solid rgba(20,20,20,.10)');
+        setImportant(portal, 'box-shadow', '0 24px 70px rgba(0,0,0,.18)');
+        setImportant(portal, 'box-sizing', 'border-box');
+        setImportant(portal, 'overflow', 'hidden');
+        setImportant(portal, 'transform', 'none');
+        setImportant(portal, 'transition', 'none');
+        setImportant(portal, 'animation', 'none');
+        setImportant(portal, 'right', 'auto');
+        setImportant(portal, 'bottom', 'auto');
+        return width;
+      }
+      function hidePortalStyles() {
+        setImportant(portal, 'display', 'none');
+        setImportant(portal, 'visibility', 'hidden');
+        setImportant(portal, 'opacity', '0');
+        setImportant(portal, 'pointer-events', 'none');
+      }
+      function showPortalStyles() {
+        setImportant(portal, 'display', 'block');
+        setImportant(portal, 'visibility', 'visible');
+        setImportant(portal, 'opacity', '1');
+        setImportant(portal, 'pointer-events', 'auto');
+      }
+      function placePortal(reason) {
+        fillPortal();
+        const width = basePortalStyles();
+        showPortalStyles();
+        portal.setAttribute('aria-hidden', 'false');
+        const rect = trigger.getBoundingClientRect();
+        const gap = 8;
+        const height = Math.min(Math.max(portal.offsetHeight || portal.scrollHeight || 120, 120), Math.max(120, window.innerHeight - 24));
+        let top = rect.bottom + gap;
+        let left = rect.left;
+        // Desktop: align to the right edge of Profile. Mobile: keep it close to the tapped row.
+        if (window.innerWidth > 820) left = rect.right - width;
+        top = clamp(top, 12, Math.max(12, window.innerHeight - height - 12));
+        left = clamp(left, 12, Math.max(12, window.innerWidth - width - 12));
+        setImportant(portal, 'top', Math.round(top) + 'px');
+        setImportant(portal, 'left', Math.round(left) + 'px');
+        profileLog('place-portal', {
+          reason: reason || '',
+          rectLeft: Math.round(rect.left), rectRight: Math.round(rect.right),
+          rectTop: Math.round(rect.top), rectBottom: Math.round(rect.bottom),
+          top: Math.round(top), left: Math.round(left), width: Math.round(width), height: Math.round(height),
+          portalDisplay: portal.style.display, portalZ: portal.style.zIndex
+        });
+      }
+      function openMenu(reason) {
+        clearTimeout(closeTimer);
+        placePortal(reason || 'open');
+        isOpen = true;
+        profile.classList.add('profile-floating-active');
+        trigger.setAttribute('aria-expanded', 'true');
+        profileLog('open-portal', { reason: reason || '', html: portal.innerHTML.replace(/\s+/g, ' ').trim().slice(0, 160) });
+      }
+      function closeMenuNow(reason) {
+        clearTimeout(closeTimer);
+        hidePortalStyles();
+        portal.setAttribute('aria-hidden', 'true');
+        isOpen = false;
+        openedByPointer = false;
+        profile.classList.remove('profile-floating-active');
+        trigger.setAttribute('aria-expanded', 'false');
+        profileLog('close-portal', { reason: reason || '' });
+      }
+      function closeMenuSoon(reason) {
+        clearTimeout(closeTimer);
+        profileLog('close-portal-soon', { reason: reason || '' });
+        closeTimer = setTimeout(() => closeMenuNow(reason || 'timer'), 80);
+      }
+      function toggleMenu(event, reason) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        profileLog('toggle-portal', { reason: reason || '', isOpen, type: event && event.type, pointerType: event && event.pointerType });
+        if (isOpen) closeMenuNow(reason || 'toggle');
+        else openMenu(reason || 'toggle');
+      }
+
+      trigger.addEventListener('mouseenter', () => {
+        if (window.matchMedia('(hover:hover)').matches) openMenu('mouseenter');
+      });
+      trigger.addEventListener('mouseleave', () => {
+        if (!openedByPointer && window.matchMedia('(hover:hover)').matches) closeMenuSoon('mouseleave-trigger');
+      });
+      trigger.addEventListener('focus', () => openMenu('focus'));
+      trigger.addEventListener('pointerdown', (event) => {
+        profileLog('trigger-pointerdown', { pointerType: event.pointerType, isPrimary: event.isPrimary });
+        if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+          pointerToggledAt = Date.now();
+          openedByPointer = true;
+          toggleMenu(event, 'pointerdown');
+        }
+      });
+      trigger.addEventListener('click', (event) => {
+        const suppress = Date.now() - pointerToggledAt < 700;
+        profileLog('trigger-click', { suppress, isOpen });
+        if (suppress) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        openedByPointer = true;
+        toggleMenu(event, 'click');
+      });
+      trigger.addEventListener('touchstart', (event) => {
+        profileLog('trigger-touchstart', { touches: event.touches ? event.touches.length : 0 });
+      }, { passive: true });
+      portal.addEventListener('mouseenter', () => clearTimeout(closeTimer));
+      portal.addEventListener('mouseleave', () => {
+        if (window.matchMedia('(hover:hover)').matches) closeMenuSoon('mouseleave-portal');
+      });
+      portal.addEventListener('pointerdown', (event) => { event.stopPropagation(); profileLog('portal-pointerdown', { pointerType: event.pointerType }); });
+      portal.addEventListener('touchstart', (event) => { event.stopPropagation(); profileLog('portal-touchstart'); }, { passive: true });
+      portal.addEventListener('click', (event) => { event.stopPropagation(); profileLog('portal-click', { target: event.target && event.target.textContent ? event.target.textContent.trim() : '' }); });
+      portal.addEventListener('focusin', () => openMenu('focusin-portal'));
+      portal.addEventListener('focusout', () => closeMenuSoon('focusout-portal'));
+      document.addEventListener('pointerdown', (event) => {
+        if (trigger.contains(event.target) || portal.contains(event.target)) return;
+        closeMenuNow('document-pointerdown');
+      }, { capture: true });
+      document.addEventListener('click', (event) => {
+        if (trigger.contains(event.target) || portal.contains(event.target)) return;
+        closeMenuNow('document-click');
+      });
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeMenuNow('escape'); });
+      window.addEventListener('resize', () => { if (isOpen) placePortal('resize'); });
+      window.addEventListener('scroll', () => { if (isOpen) placePortal('scroll'); }, { passive: true });
+      window.__adproofCloseProfileMenus = function(){ closeMenuNow('global-close'); };
+      hidePortalStyles();
+    });
+  }
 
   async function initAuthNav() {
+    headerLog('initAuthNav-start');
     const nav = $('[data-nav]');
-    if (!nav) return;
+    if (!nav) { headerLog('initAuthNav-no-nav'); markAuthNavReady('no-nav'); return; }
+    let slot = $('[data-public-auth]', nav);
+    headerLog('initAuthNav-slot-found', { found: !!slot, initialText: slot ? slot.innerText : '' });
+    const oldLoginLink = Array.from(nav.querySelectorAll('a')).find(a => /\/login$/.test(a.getAttribute('href') || ''));
+    const oldCta = nav.querySelector('.nav-cta');
+
+    // Backward-compatible migration for cached/static pages that still contain Login/Get access.
+    if (!slot) {
+      slot = document.createElement('span');
+      slot.className = 'public-auth-slot';
+      slot.setAttribute('data-public-auth', '');
+      if (oldLoginLink) oldLoginLink.replaceWith(slot);
+      else nav.appendChild(slot);
+      if (oldCta) oldCta.remove();
+      headerLog('initAuthNav-migrated-old-links', { slotText: slot.innerText });
+    }
+
+    const isLoginActive = !!oldLoginLink && oldLoginLink.classList.contains('active');
+    slot.classList.remove('auth-loading');
+    slot.classList.remove('auth-ready');
+
+    function renderGuest() {
+      headerLog('renderGuest-before', { previousText: slot.innerText });
+      slot.innerHTML = `<a href="/login" class="${isLoginActive ? 'active' : ''}">Login</a><a class="nav-cta" href="/register">Get access</a>`;
+      headerLog('renderGuest-after', { text: slot.innerText });
+    }
+
+    function renderClient() {
+      const isHome = location.pathname === '/' || /\/index\.html$/.test(location.pathname);
+      const dashboardItem = isHome ? '' : '<a href="/account">Dashboard</a>';
+      headerLog('renderClient-before', { previousText: slot.innerText, isHome });
+      slot.innerHTML = `<span class="nav-profile"><span class="nav-profile-trigger" tabindex="0">Profile</span><span class="nav-profile-menu">${dashboardItem}<a href="/account/profile">Personal data</a><button type="button" data-public-logout>Logout</button></span></span><a class="nav-cta" href="/account">Dashboard</a>`;
+      attachFloatingProfileMenus(slot);
+      headerLog('renderClient-after', { text: slot.innerText });
+    }
+
     try {
-      const res = await fetch('/api/client/session', { credentials: 'same-origin', cache: 'no-store' });
-      const data = await res.json();
-      if (!data || !data.authenticated || !data.user) return;
-      const loginLink = Array.from(nav.querySelectorAll('a')).find(a => /\/login$/.test(a.getAttribute('href') || ''));
-      if (!loginLink) return;
-      const profile = document.createElement('span');
-      profile.className = 'nav-profile';
-      const name = (data.user.name || data.user.email || 'Account').trim();
-      profile.innerHTML = `<span class="nav-profile-trigger" tabindex="0">Profile</span><span class="nav-profile-menu"><a href="/account">${name.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</a><button type="button" data-public-logout>Logout</button></span>`;
-      loginLink.replaceWith(profile);
-      const cta = nav.querySelector('.nav-cta');
-      if (cta) cta.href = '/account';
-      profile.addEventListener('click', async (event) => {
+      headerLog('auth-fetch-start', { url: '/api/client/session' });
+      const controller = 'AbortController' in window ? new AbortController() : null;
+      const authTimeout = setTimeout(function(){ if (controller) controller.abort(); }, 3500);
+      const res = await fetch('/api/client/session', { credentials: 'same-origin', cache: 'no-store', signal: controller ? controller.signal : undefined });
+      clearTimeout(authTimeout);
+      headerLog('auth-fetch-response', { ok: res.ok, status: res.status });
+      const data = res.ok ? await res.json() : null;
+      headerLog('auth-fetch-data', { authenticated: !!(data && data.authenticated), hasUser: !!(data && data.user), email: data && data.user && data.user.email ? data.user.email : '' });
+      if (data && data.authenticated && data.user) renderClient();
+      else renderGuest();
+      slot.classList.remove('auth-loading');
+      slot.classList.add('auth-ready');
+      markAuthNavReady('auth-fetch-complete');
+
+      slot.addEventListener('click', async (event) => {
         const btn = event.target.closest('[data-public-logout]');
         if (!btn) return;
         event.preventDefault();
@@ -46,8 +353,34 @@
         form.set('csrf', token);
         await fetch('/logout', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() });
         window.location.href = '/login';
-      });
-    } catch (_) {}
+      }, { once: false });
+    } catch (err) {
+      headerLog('auth-fetch-error', { name: err && err.name, message: err && err.message });
+      renderGuest();
+      slot.classList.remove('auth-loading');
+      slot.classList.add('auth-ready');
+      markAuthNavReady('auth-fetch-error');
+    }
+  }
+
+  document.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-public-logout]');
+    if (!btn) return;
+    event.preventDefault();
+    try {
+      const account = await fetch('/account', { credentials: 'same-origin' }).then(r => r.text()).catch(() => '');
+      const token = (account.match(/name="csrf" value="([^"]+)"/) || [])[1] || '';
+      const form = new URLSearchParams();
+      form.set('csrf', token);
+      await fetch('/logout', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() });
+    } finally {
+      window.location.href = '/login';
+    }
+  });
+
+  function closeAllProfilePortalMenus() {
+    $$('.profile-menu-portal-open').forEach(menu => menu.classList.remove('profile-menu-portal-open'));
+    $$('.profile-floating-active').forEach(item => item.classList.remove('profile-floating-active'));
   }
 
   function initMenu() {
@@ -55,12 +388,27 @@
     const nav = $('[data-nav]');
     if (!btn || !nav) return;
     btn.addEventListener('click', () => {
-      const open = document.body.classList.toggle('menu-open');
-      btn.setAttribute('aria-expanded', String(open));
+      const wasOpen = document.body.classList.contains('menu-open');
+      if (wasOpen) {
+        // Hide the full-width mobile menu immediately on close. This avoids the
+        // one-frame flash where menu items briefly appear on the right edge.
+        document.body.classList.add('menu-closing');
+        document.body.classList.remove('menu-open');
+        closeAllProfilePortalMenus();
+        btn.setAttribute('aria-expanded', 'false');
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          document.body.classList.remove('menu-closing');
+        }));
+        return;
+      }
+      document.body.classList.remove('menu-closing');
+      document.body.classList.add('menu-open');
+      btn.setAttribute('aria-expanded', 'true');
     });
     nav.addEventListener('click', (event) => {
       if (event.target.closest('a')) {
         document.body.classList.remove('menu-open');
+        closeAllProfilePortalMenus();
         btn.setAttribute('aria-expanded', 'false');
       }
     });
@@ -239,14 +587,14 @@
     });
   }
 
-  function initAI() {
+  function initInsightDemo() {
     const btn = $('[data-generate-ai]');
     const msg = $('[data-ai-message]');
     if (!btn || !msg) return;
     const summaries = [
-      'AI summary: the ad container is present in the DOM, but its height becomes 0px on a mobile breakpoint. Check CSS for #ad-slot and lazy loading after layout changes.',
-      'AI summary: events are arriving, but server verify often denies access. The likely cause is a session id mismatch between SDK and backend.',
-      'AI summary: the customer domain does not match allowed domains for this project. Add the www version or configure a canonical domain.'
+      'Insight summary: the ad container is present in the DOM, but its height becomes 0px on a mobile breakpoint. Check CSS for #ad-slot and lazy loading after layout changes.',
+      'Insight summary: events are arriving, but server verify often denies access. The likely cause is a session id mismatch between SDK and backend.',
+      'Insight summary: the customer domain does not match allowed domains for this project. Add the www version or configure a canonical domain.'
     ];
     let i = 0;
     btn.addEventListener('click', () => {
@@ -393,13 +741,14 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     initAuthNav();
+    attachFloatingProfileMenus(document);
     initMenu();
     initReveal();
     initCounters();
     initHomeDemo();
     initTabs();
     drawCharts();
-    initAI();
+    initInsightDemo();
     initSecurityChecklist();
     initPricing();
     initAccordion();
