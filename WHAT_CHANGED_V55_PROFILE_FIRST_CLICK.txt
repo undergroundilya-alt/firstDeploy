@@ -1,0 +1,3 @@
+V55
+- Changed homepage heading to "Reporting for ad visibility".
+- Fixed Profile trigger so first click/tap opens the floating profile pop-up immediately instead of focusing first.

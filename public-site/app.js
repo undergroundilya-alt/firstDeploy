@@ -241,17 +241,24 @@
       trigger.addEventListener('mouseleave', () => {
         if (!openedByPointer && window.matchMedia('(hover:hover)').matches) closeMenuSoon('mouseleave-trigger');
       });
-      trigger.addEventListener('focus', () => openMenu('focus'));
+      trigger.addEventListener('focus', (event) => {
+        // Keyboard focus should open the menu, but mouse/touch focus must not
+        // open first and then let the following click close it again.
+        const suppressFocus = Date.now() - pointerToggledAt < 700;
+        profileLog('trigger-focus', { suppressFocus, isOpen });
+        if (!suppressFocus) openMenu('focus');
+      });
       trigger.addEventListener('pointerdown', (event) => {
-        profileLog('trigger-pointerdown', { pointerType: event.pointerType, isPrimary: event.isPrimary });
-        if (event.pointerType === 'touch' || event.pointerType === 'pen') {
-          pointerToggledAt = Date.now();
-          openedByPointer = true;
-          toggleMenu(event, 'pointerdown');
-        }
+        profileLog('trigger-pointerdown', { pointerType: event.pointerType, isPrimary: event.isPrimary, isOpen });
+        if (event.isPrimary === false) return;
+        // Toggle directly on pointerdown for mouse/touch/pen. This prevents the
+        // first click from only focusing Profile and the second click opening it.
+        pointerToggledAt = Date.now();
+        openedByPointer = true;
+        toggleMenu(event, 'pointerdown');
       });
       trigger.addEventListener('click', (event) => {
-        const suppress = Date.now() - pointerToggledAt < 700;
+        const suppress = Date.now() - pointerToggledAt < 900;
         profileLog('trigger-click', { suppress, isOpen });
         if (suppress) {
           event.preventDefault();
